@@ -40,7 +40,7 @@ Provide the following SQL scripts:
 
 **Create Tables Script** - The SQL script for creating the database tables is available in the repository:  
 
-[📂 View create_tables.sql](Phrase1/createTables.sql)
+[📜 View create_tables.sql](Phrase1/createTables.sql)
 
 **Insert Data Script**- The SQL script for insert data to the database tables is available in the repository:
 
