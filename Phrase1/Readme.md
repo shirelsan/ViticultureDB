@@ -32,7 +32,7 @@
 
 ### **DSD (Data Structure Diagram)**  
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD.png?raw=true)  
-### **DSD (Data Structure Diagram)2**  
+### **DSD (Data Structure Diagram)**  
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD%20(Data%20Structure%20Diagram)2.jpeg?raw=true)  
 ### **SQL Scripts**  
 
