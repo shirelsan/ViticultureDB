@@ -8,17 +8,17 @@
 
 - [Phase 1: Design and Build the Database](#phase-1-design-and-build-the-database)
   
--[introduction](introduction) 
+-[introduction](#introduction) 
 
--[ERD (Entity-Relationship Diagram)](ERD (Entity-Relationship Diagram))   
+-[ERD (Entity-Relationship Diagram)](#erd-(entity-relationship-diagram))   
   
--[DSD (Data Structure Diagram)](DSD (Data Structure Diagram))  
+-[DSD (Data Structure Diagram)](#dsd_(data-structure-diagram))  
 
 -[SQL Scripts](#sql-scripts) 
 
--[Data](Data)  
+-[Data](#data)  
 
--[Backup](Backup)  
+-[Backup](#backup)  
 
 
 # Phase 1: Design and Build the Database
