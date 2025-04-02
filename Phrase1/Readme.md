@@ -6,8 +6,9 @@
 
 ##Table of Contents  
 
-Phase 1: Design and Build the Database
--[מבוא](#מבוא)  
+Phase 1: Design and Build the Database  
+
+-[introduction](introduction) 
 
 -[ERD (Entity-Relationship Diagram)](ERD (Entity-Relationship Diagram))   
   
@@ -22,7 +23,7 @@ Phase 1: Design and Build the Database
 
 
 
-## מבוא:  
+## introduction:  
 
 מאגר הנתונים הזה מיועד לניהול מידע הקשור לגידול גפנים, טיפול בכרמים, סוגי זני הענבים, עובדים, תחזוקה, קטיף ומלאי.  
 
