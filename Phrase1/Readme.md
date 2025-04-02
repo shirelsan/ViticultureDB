@@ -56,6 +56,8 @@ Provide the following SQL scripts:
 
 ### **Data**  
 First tool: using mockaro to create csv file  
+   
+  • [📂 View File_Mockaroo](Phrase1/mockarooFiles)  
 
 Second tool: using python to create csv file  
 
