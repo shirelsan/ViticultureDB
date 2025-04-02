@@ -42,11 +42,13 @@ Provide the following SQL scripts:
 
 [📜 View create_tables.sql](createTables.sql)
 
-**Insert Data Script**- The SQL script for insert data to the database tables is available in the repository:
+**Insert Data Script**- The SQL script for insert data to the database tables is available in the repository:  
 
 
-**Drop Tables Script** - The SQL script for droping all tables is available in the repository:
+**Drop Tables Script** - The SQL script for droping all tables is available in the repository:  
 
+[📜 View Drop_Tables.sql](Drop_Tables.sql)
 
-**Select All Data Script** - The SQL script for selectAll tables is available in the repository:
+**Select All Data Script** - The SQL script for selectAll tables is available in the repository:  
 
+[📜 View Select_All Data.sql](SelectAll.sql)
