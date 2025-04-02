@@ -58,6 +58,10 @@ Provide the following SQL scripts:
 First tool: using mockaro to create csv file  
    
   • [📂 View File_Mockaroo](mockarooFiles)  
+  
+  for example: 
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo.jpeg?raw=true)
+  
 
 Second tool: using python to create csv file  
 
