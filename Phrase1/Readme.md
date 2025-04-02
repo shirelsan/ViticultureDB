@@ -27,7 +27,7 @@
 המאגר מספק פתרון ארגוני ויעיל לניהול המידע הקשור לכל שלב בתהליך גידול הגפנים, משלב הנטיעה ועד שלב הקטיף ומכירת המלאי.  
 
 ### **ERD (Entity-Relationship Diagram)** 
-(https://github.com/shirelsan/ViticultureDB/commit/78324c0b1a7fb1731a8f08e9b334576e51f6a7ab#diff-a38f62d89df7531ba5112886c6907e0d5c3eb3a9fdbf9ec04e15763562c3de40?raw=true)[תיאור תמונה]!
+(https://raw.githubusercontent.com/shirelsan/ViticultureDB/78324c0b1a7fb1731a8f08e9b334576e51f6a7ab/image%20(7).png?token=BE4JXS6ULAJMNQVEF6NJNE3H5TYXW?raw=true)[תיאור תמונה]!
 
 
 
