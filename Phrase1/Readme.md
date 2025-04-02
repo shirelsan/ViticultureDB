@@ -10,11 +10,11 @@
   
 -[introduction](#introduction) 
 
--[ERD (Entity-Relationship Diagram)](#erd-(#entity-relationship-diagram))   
+-[ERD (Entity-Relationship Diagram)](#erd-entity-relationship-diagram)   
   
--[DSD (Data Structure Diagram)](#dsd-(#data-structure-diagram))  
+-[DSD (Data Structure Diagram)](#dsd-data-structure-diagram)  
 
---[DSD (Data Structure Diagram Second)](#dsd-(#data-structure-diagram-second))
+--[DSD (Data Structure Diagram Second)](#dsd-data-structure-diagram-second)
 
 -[SQL Scripts](#sql-scripts) 
 
