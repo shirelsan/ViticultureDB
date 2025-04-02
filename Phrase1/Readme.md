@@ -52,4 +52,17 @@ Provide the following SQL scripts:
 
 **Select All Data Script** - The SQL script for selectAll tables is available in the repository:  
 
-[📜 View Select_All Data.sql](selectAll.sql)
+[📜 View Select_All Data.sql](selectAll.sql)  
+
+### **Data**  
+First tool: using mockaro to create csv file  
+
+Second tool: using python to create csv file  
+
+Third tool: using Excel to create csv file  
+
+### **Backup**  
+
+backups files are kept with the date and hour of the backup:
+
+
