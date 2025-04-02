@@ -6,7 +6,7 @@
 
 ## Table of Contents  
 
-Phase 1: Design and Build the Database  
+-[Phase 1: Design and Build the Database](Phase 1: Design and Build the Database)  
 
 -[introduction](introduction) 
 
@@ -21,7 +21,7 @@ Phase 1: Design and Build the Database
 -[Backup](Backup)  
 
 
-
+# Phase 1: Design and Build the Database
 
 ## introduction:  
 
