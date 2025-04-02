@@ -1,10 +1,11 @@
 ## Phrase 1:  
 
-### **מאגר נתונים לניהול גידול גפנים**  
+# **מאגר נתונים לניהול גידול גפנים**  
 
-מגישות: שיראל סננס - 31722145 טל שזיפי - 213878580
+מגישות: שיראל סננס - 31722145 טל שזיפי - 213878580  
 
-### מבוא:  
+
+## מבוא:  
 
 מאגר הנתונים הזה מיועד לניהול מידע הקשור לגידול גפנים, טיפול בכרמים, סוגי זני הענבים, עובדים, תחזוקה, קטיף ומלאי.  
 
@@ -26,15 +27,19 @@
 
 המאגר מספק פתרון ארגוני ויעיל לניהול המידע הקשור לכל שלב בתהליך גידול הגפנים, משלב הנטיעה ועד שלב הקטיף ומכירת המלאי.  
 
-### **ERD (Entity-Relationship Diagram)** 
+## **ERD (Entity-Relationship Diagram)** 
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/ERD.png?raw=true)  
 
-### **DSD (Data Structure Diagram)**  
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD.png?raw=true)  
-### **DSD (Data Structure Diagram)**  
+## **DSD (Data Structure Diagram)**  
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD.png?raw=true)   
+
+## **DSD (Data Structure Diagram)**  
+
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD%20(Data%20Structure%20Diagram)2.jpeg?raw=true)  
-### **SQL Scripts**  
+
+## **SQL Scripts**  
 
 Provide the following SQL scripts:
 
@@ -54,8 +59,8 @@ Provide the following SQL scripts:
 
 •[📜 View Select_All Data.sql](selectAll.sql)  
 
-### **Data**  
-<u>**First tool: using mockaro to create csv file**</u>  
+## **Data**  
+### **First tool: using mockaro to create csv file**</u>  
    
   • [📂 View File_Mockaroo](mockarooFiles)  
   
@@ -90,7 +95,7 @@ Provide the following SQL scripts:
   
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel.jpeg?raw=true)   
   
-### **Backup**  
+## **Backup**  
 
 backups files are kept with the date and hour of the backup:  
 
