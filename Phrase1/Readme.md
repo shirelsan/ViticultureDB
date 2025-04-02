@@ -59,28 +59,37 @@ First tool: using mockaro to create csv file
    
   • [📂 View File_Mockaroo](mockarooFiles)  
   
-  for example: 
-  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo.jpeg?raw=true)  
-  for example from pgadmin: 
+  for example:  
+  
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo.jpeg?raw=true)   
+  
+  for example from pgadmin:  
+  
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo-pgadmin.jpeg?raw=true)
   
 
 Second tool: using python to create csv file  
 • [📂 View File_python](Programing)  
   
-  for example: 
+  for example:  
+  
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/Programing/python.jpeg?raw=true)  
-  for example from pgadmin: 
+  
+  for example from pgadmin:  
+  
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo-pgadmin.jpeg?raw=true) 
 
 Third tool: using Excel to create csv file  
 • [📂 View File_Excel](DataImportFiles)  
   
-   for example: 
-  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel.jpeg?raw=true)  
-  for example from pgadmin: 
-  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel-pgadmin.jpeg?raw=true) 
-
+   for example:   
+   
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel-pgadmin.jpeg?raw=true)   
+  
+  for example from pgadmin:  
+  
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel.jpeg?raw=true)   
+  
 ### **Backup**  
 
 backups files are kept with the date and hour of the backup:
