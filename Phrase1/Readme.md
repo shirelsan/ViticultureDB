@@ -4,7 +4,7 @@
 
 מגישות: שיראל סננס - 31722145 טל שזיפי - 213878580  
 
-##Table of Contents  
+## Table of Contents  
 
 Phase 1: Design and Build the Database  
 
