@@ -12,7 +12,9 @@
 
 -[ERD (Entity-Relationship Diagram)](#erd-(entity-relationship-diagram))   
   
--[DSD (Data Structure Diagram)](#dsd_(data-structure-diagram))  
+-[DSD (Data Structure Diagram)](#dsd-(data-structure-diagram))  
+
+--[DSD (Data Structure Diagram Second)](#dsd-(data-structure-diagram-second))
 
 -[SQL Scripts](#sql-scripts) 
 
@@ -53,7 +55,7 @@
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD.png?raw=true)   
 
-## **DSD (Data Structure Diagram)**  
+## **DSD (Data Structure Diagram Second)**  
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD%20(Data%20Structure%20Diagram)2.jpeg?raw=true)  
 
