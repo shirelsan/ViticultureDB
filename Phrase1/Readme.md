@@ -4,6 +4,17 @@
 
 מגישות: שיראל סננס - 31722145 טל שזיפי - 213878580  
 
+##Table of Contents
+Phase 1: Design and Build the Database
+-[מבוא](#מבוא)
+-[ERD (Entity-Relationship Diagram)](ERD (Entity-Relationship Diagram))
+
+DSD (Data Structure Diagram)
+SQL Scripts
+Data
+Backup
+Phase 2: Integration
+
 
 ## מבוא:  
 
