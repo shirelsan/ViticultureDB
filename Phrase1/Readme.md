@@ -47,7 +47,7 @@ Provide the following SQL scripts:
 
 **Drop Tables Script** - The SQL script for droping all tables is available in the repository:  
 
-[📜 View Drop_Tables.sql](Drop_Tables.sql)
+[📜 View Drop_Tables.sql](dropTables.sql)
 
 **Select All Data Script** - The SQL script for selectAll tables is available in the repository:  
 
