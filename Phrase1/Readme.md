@@ -55,7 +55,7 @@ Provide the following SQL scripts:
 [📜 View Select_All Data.sql](selectAll.sql)  
 
 ### **Data**  
-First tool: using mockaro to create csv file  
+<u>**First tool: using mockaro to create csv file**<u>  
    
   • [📂 View File_Mockaroo](mockarooFiles)  
   
