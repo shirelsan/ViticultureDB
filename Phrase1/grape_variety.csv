@@ -1,0 +1,401 @@
+g_name,color, grape_variety_id,vine_id
+Merlot,Red,100,100
+Chardonnay,White,101,101
+Merlot,Red,102,102
+Merlot,Red,103,103
+Chardonnay,Red,104,104
+Merlot,White,105,105
+Merlot,White,106,106
+Cabernet Sauvignon,Red,107,107
+Merlot,White,108,108
+Chardonnay,White,109,109
+Cabernet Sauvignon,Red,110,110
+Merlot,Red,111,111
+Merlot,Red,112,112
+Merlot,Red,113,113
+Chardonnay,White,114,114
+Cabernet Sauvignon,White,115,115
+Merlot,White,116,116
+Cabernet Sauvignon,White,117,117
+Cabernet Sauvignon,Red,118,118
+Chardonnay,Red,119,119
+Chardonnay,White,120,120
+Merlot,Red,121,121
+Cabernet Sauvignon,White,122,122
+Merlot,White,123,123
+Chardonnay,Red,124,124
+Chardonnay,White,125,125
+Cabernet Sauvignon,Red,126,126
+Merlot,White,127,127
+Cabernet Sauvignon,White,128,128
+Chardonnay,White,129,129
+Chardonnay,Red,130,130
+Chardonnay,Red,131,131
+Cabernet Sauvignon,White,132,132
+Merlot,White,133,133
+Merlot,Red,134,134
+Merlot,White,135,135
+Cabernet Sauvignon,Red,136,136
+Chardonnay,Red,137,137
+Merlot,Red,138,138
+Cabernet Sauvignon,Red,139,139
+Cabernet Sauvignon,Red,140,140
+Merlot,White,141,141
+Chardonnay,White,142,142
+Chardonnay,White,143,143
+Merlot,Red,144,144
+Merlot,Red,145,145
+Chardonnay,White,146,146
+Chardonnay,Red,147,147
+Merlot,White,148,148
+Chardonnay,Red,149,149
+Cabernet Sauvignon,Red,150,150
+Chardonnay,White,151,151
+Chardonnay,White,152,152
+Cabernet Sauvignon,White,153,153
+Chardonnay,White,154,154
+Merlot,Red,155,155
+Chardonnay,White,156,156
+Merlot,Red,157,157
+Cabernet Sauvignon,White,158,158
+Cabernet Sauvignon,Red,159,159
+Cabernet Sauvignon,Red,160,160
+Merlot,Red,161,161
+Chardonnay,White,162,162
+Chardonnay,White,163,163
+Merlot,Red,164,164
+Chardonnay,Red,165,165
+Merlot,White,166,166
+Chardonnay,White,167,167
+Chardonnay,White,168,168
+Merlot,White,169,169
+Cabernet Sauvignon,White,170,170
+Cabernet Sauvignon,Red,171,171
+Cabernet Sauvignon,White,172,172
+Chardonnay,Red,173,173
+Merlot,Red,174,174
+Merlot,Red,175,175
+Cabernet Sauvignon,Red,176,176
+Cabernet Sauvignon,White,177,177
+Merlot,White,178,178
+Merlot,White,179,179
+Cabernet Sauvignon,Red,180,180
+Chardonnay,Red,181,181
+Cabernet Sauvignon,Red,182,182
+Chardonnay,Red,183,183
+Chardonnay,White,184,184
+Cabernet Sauvignon,Red,185,185
+Merlot,Red,186,186
+Chardonnay,Red,187,187
+Merlot,Red,188,188
+Merlot,Red,189,189
+Cabernet Sauvignon,Red,190,190
+Chardonnay,Red,191,191
+Merlot,White,192,192
+Cabernet Sauvignon,Red,193,193
+Chardonnay,White,194,194
+Merlot,Red,195,195
+Chardonnay,White,196,196
+Chardonnay,Red,197,197
+Cabernet Sauvignon,White,198,198
+Merlot,Red,199,199
+Cabernet Sauvignon,Red,200,200
+Cabernet Sauvignon,White,201,201
+Cabernet Sauvignon,White,202,202
+Cabernet Sauvignon,White,203,203
+Chardonnay,Red,204,204
+Chardonnay,White,205,205
+Chardonnay,Red,206,206
+Chardonnay,White,207,207
+Chardonnay,White,208,208
+Cabernet Sauvignon,Red,209,209
+Merlot,Red,210,210
+Chardonnay,Red,211,211
+Merlot,White,212,212
+Merlot,Red,213,213
+Merlot,Red,214,214
+Merlot,Red,215,215
+Chardonnay,White,216,216
+Chardonnay,White,217,217
+Cabernet Sauvignon,Red,218,218
+Merlot,White,219,219
+Merlot,White,220,220
+Cabernet Sauvignon,White,221,221
+Merlot,Red,222,222
+Chardonnay,White,223,223
+Cabernet Sauvignon,White,224,224
+Merlot,Red,225,225
+Chardonnay,White,226,226
+Merlot,Red,227,227
+Merlot,White,228,228
+Merlot,White,229,229
+Chardonnay,Red,230,230
+Cabernet Sauvignon,Red,231,231
+Chardonnay,Red,232,232
+Cabernet Sauvignon,Red,233,233
+Chardonnay,White,234,234
+Merlot,Red,235,235
+Chardonnay,Red,236,236
+Merlot,Red,237,237
+Cabernet Sauvignon,White,238,238
+Merlot,White,239,239
+Merlot,Red,240,240
+Cabernet Sauvignon,White,241,241
+Cabernet Sauvignon,White,242,242
+Merlot,Red,243,243
+Merlot,Red,244,244
+Cabernet Sauvignon,Red,245,245
+Merlot,White,246,246
+Cabernet Sauvignon,Red,247,247
+Cabernet Sauvignon,Red,248,248
+Cabernet Sauvignon,White,249,249
+Merlot,White,250,250
+Cabernet Sauvignon,White,251,251
+Cabernet Sauvignon,White,252,252
+Merlot,White,253,253
+Cabernet Sauvignon,White,254,254
+Chardonnay,White,255,255
+Merlot,White,256,256
+Cabernet Sauvignon,White,257,257
+Merlot,White,258,258
+Merlot,White,259,259
+Cabernet Sauvignon,White,260,260
+Cabernet Sauvignon,White,261,261
+Cabernet Sauvignon,White,262,262
+Chardonnay,Red,263,263
+Chardonnay,White,264,264
+Merlot,Red,265,265
+Merlot,White,266,266
+Cabernet Sauvignon,Red,267,267
+Chardonnay,Red,268,268
+Chardonnay,White,269,269
+Chardonnay,White,270,270
+Cabernet Sauvignon,White,271,271
+Chardonnay,White,272,272
+Cabernet Sauvignon,Red,273,273
+Cabernet Sauvignon,White,274,274
+Cabernet Sauvignon,Red,275,275
+Chardonnay,White,276,276
+Cabernet Sauvignon,Red,277,277
+Cabernet Sauvignon,White,278,278
+Merlot,White,279,279
+Cabernet Sauvignon,Red,280,280
+Merlot,Red,281,281
+Cabernet Sauvignon,Red,282,282
+Cabernet Sauvignon,Red,283,283
+Chardonnay,White,284,284
+Chardonnay,White,285,285
+Cabernet Sauvignon,White,286,286
+Cabernet Sauvignon,White,287,287
+Merlot,Red,288,288
+Merlot,Red,289,289
+Chardonnay,Red,290,290
+Chardonnay,Red,291,291
+Chardonnay,Red,292,292
+Merlot,Red,293,293
+Chardonnay,White,294,294
+Merlot,White,295,295
+Chardonnay,White,296,296
+Merlot,Red,297,297
+Merlot,White,298,298
+Merlot,White,299,299
+Chardonnay,Red,300,300
+Merlot,Red,301,301
+Merlot,Red,302,302
+Chardonnay,Red,303,303
+Cabernet Sauvignon,White,304,304
+Merlot,Red,305,305
+Cabernet Sauvignon,Red,306,306
+Chardonnay,Red,307,307
+Cabernet Sauvignon,White,308,308
+Cabernet Sauvignon,White,309,309
+Chardonnay,Red,310,310
+Chardonnay,Red,311,311
+Merlot,White,312,312
+Chardonnay,White,313,313
+Cabernet Sauvignon,Red,314,314
+Cabernet Sauvignon,White,315,315
+Cabernet Sauvignon,White,316,316
+Cabernet Sauvignon,White,317,317
+Chardonnay,White,318,318
+Merlot,White,319,319
+Cabernet Sauvignon,Red,320,320
+Merlot,White,321,321
+Merlot,White,322,322
+Cabernet Sauvignon,White,323,323
+Cabernet Sauvignon,Red,324,324
+Cabernet Sauvignon,White,325,325
+Merlot,White,326,326
+Cabernet Sauvignon,White,327,327
+Chardonnay,White,328,328
+Chardonnay,White,329,329
+Chardonnay,White,330,330
+Merlot,White,331,331
+Cabernet Sauvignon,Red,332,332
+Cabernet Sauvignon,White,333,333
+Cabernet Sauvignon,Red,334,334
+Cabernet Sauvignon,White,335,335
+Merlot,White,336,336
+Chardonnay,Red,337,337
+Chardonnay,White,338,338
+Cabernet Sauvignon,White,339,339
+Merlot,Red,340,340
+Cabernet Sauvignon,White,341,341
+Merlot,Red,342,342
+Chardonnay,White,343,343
+Merlot,White,344,344
+Cabernet Sauvignon,White,345,345
+Chardonnay,Red,346,346
+Cabernet Sauvignon,Red,347,347
+Merlot,Red,348,348
+Cabernet Sauvignon,Red,349,349
+Cabernet Sauvignon,White,350,350
+Merlot,Red,351,351
+Cabernet Sauvignon,Red,352,352
+Cabernet Sauvignon,White,353,353
+Cabernet Sauvignon,White,354,354
+Chardonnay,Red,355,355
+Chardonnay,Red,356,356
+Chardonnay,Red,357,357
+Chardonnay,White,358,358
+Chardonnay,Red,359,359
+Cabernet Sauvignon,White,360,360
+Chardonnay,White,361,361
+Cabernet Sauvignon,Red,362,362
+Cabernet Sauvignon,White,363,363
+Merlot,White,364,364
+Chardonnay,White,365,365
+Cabernet Sauvignon,White,366,366
+Merlot,White,367,367
+Chardonnay,White,368,368
+Cabernet Sauvignon,White,369,369
+Chardonnay,Red,370,370
+Merlot,White,371,371
+Chardonnay,White,372,372
+Merlot,Red,373,373
+Chardonnay,Red,374,374
+Cabernet Sauvignon,Red,375,375
+Merlot,White,376,376
+Cabernet Sauvignon,White,377,377
+Chardonnay,White,378,378
+Merlot,White,379,379
+Cabernet Sauvignon,Red,380,380
+Merlot,Red,381,381
+Merlot,White,382,382
+Cabernet Sauvignon,White,383,383
+Chardonnay,Red,384,384
+Merlot,Red,385,385
+Chardonnay,White,386,386
+Cabernet Sauvignon,White,387,387
+Merlot,White,388,388
+Merlot,White,389,389
+Merlot,White,390,390
+Cabernet Sauvignon,Red,391,391
+Cabernet Sauvignon,Red,392,392
+Cabernet Sauvignon,Red,393,393
+Merlot,White,394,394
+Merlot,White,395,395
+Cabernet Sauvignon,Red,396,396
+Merlot,White,397,397
+Cabernet Sauvignon,White,398,398
+Chardonnay,White,399,399
+Merlot,White,400,400
+Chardonnay,Red,401,401
+Cabernet Sauvignon,Red,402,402
+Cabernet Sauvignon,White,403,403
+Cabernet Sauvignon,White,404,404
+Cabernet Sauvignon,White,405,405
+Chardonnay,White,406,406
+Chardonnay,Red,407,407
+Merlot,Red,408,408
+Cabernet Sauvignon,Red,409,409
+Chardonnay,Red,410,410
+Chardonnay,Red,411,411
+Merlot,Red,412,412
+Cabernet Sauvignon,White,413,413
+Merlot,Red,414,414
+Chardonnay,White,415,415
+Chardonnay,White,416,416
+Merlot,Red,417,417
+Chardonnay,White,418,418
+Cabernet Sauvignon,White,419,419
+Cabernet Sauvignon,White,420,420
+Merlot,Red,421,421
+Merlot,Red,422,422
+Chardonnay,White,423,423
+Merlot,Red,424,424
+Cabernet Sauvignon,Red,425,425
+Cabernet Sauvignon,Red,426,426
+Chardonnay,Red,427,427
+Cabernet Sauvignon,Red,428,428
+Merlot,Red,429,429
+Cabernet Sauvignon,Red,430,430
+Cabernet Sauvignon,Red,431,431
+Chardonnay,Red,432,432
+Cabernet Sauvignon,White,433,433
+Cabernet Sauvignon,White,434,434
+Cabernet Sauvignon,White,435,435
+Cabernet Sauvignon,Red,436,436
+Merlot,Red,437,437
+Chardonnay,White,438,438
+Merlot,Red,439,439
+Cabernet Sauvignon,Red,440,440
+Merlot,White,441,441
+Merlot,Red,442,442
+Merlot,Red,443,443
+Merlot,White,444,444
+Merlot,White,445,445
+Cabernet Sauvignon,White,446,446
+Chardonnay,White,447,447
+Cabernet Sauvignon,White,448,448
+Merlot,Red,449,449
+Chardonnay,White,450,450
+Chardonnay,White,451,451
+Cabernet Sauvignon,White,452,452
+Cabernet Sauvignon,Red,453,453
+Chardonnay,Red,454,454
+Chardonnay,White,455,455
+Cabernet Sauvignon,White,456,456
+Chardonnay,White,457,457
+Merlot,Red,458,458
+Merlot,White,459,459
+Merlot,White,460,460
+Chardonnay,White,461,461
+Cabernet Sauvignon,Red,462,462
+Cabernet Sauvignon,White,463,463
+Merlot,White,464,464
+Cabernet Sauvignon,Red,465,465
+Chardonnay,Red,466,466
+Cabernet Sauvignon,Red,467,467
+Merlot,White,468,468
+Chardonnay,White,469,469
+Merlot,White,470,470
+Merlot,Red,471,471
+Chardonnay,White,472,472
+Chardonnay,White,473,473
+Merlot,Red,474,474
+Chardonnay,White,475,475
+Merlot,Red,476,476
+Chardonnay,Red,477,477
+Cabernet Sauvignon,White,478,478
+Cabernet Sauvignon,Red,479,479
+Chardonnay,White,480,480
+Cabernet Sauvignon,White,481,481
+Chardonnay,Red,482,482
+Chardonnay,Red,483,483
+Chardonnay,White,484,484
+Chardonnay,White,485,485
+Chardonnay,White,486,486
+Merlot,White,487,487
+Merlot,White,488,488
+Chardonnay,Red,489,489
+Chardonnay,Red,490,490
+Cabernet Sauvignon,Red,491,491
+Cabernet Sauvignon,White,492,492
+Cabernet Sauvignon,Red,493,493
+Merlot,Red,494,494
+Merlot,White,495,495
+Cabernet Sauvignon,White,496,496
+Merlot,Red,497,497
+Merlot,White,498,498
+Chardonnay,White,499,499
