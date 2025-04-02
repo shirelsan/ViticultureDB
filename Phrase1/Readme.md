@@ -68,7 +68,7 @@ Provide the following SQL scripts:
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo-pgadmin.jpeg?raw=true)
   
 
-<u>Second tool: using python to create csv file</u>   
+### **Second tool: using python to create csv file**   
 • [📂 View File_python](Programing)  
   
   for example:  
@@ -79,7 +79,7 @@ Provide the following SQL scripts:
   
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/Programing/python-pgadmin.jpeg?raw=true) 
 
-Third tool: using Excel to create csv file  
+### **Third tool: using Excel to create csv file**  
 • [📂 View File_Excel](DataImportFiles)  
   
    for example:   
@@ -92,7 +92,8 @@ Third tool: using Excel to create csv file
   
 ### **Backup**  
 
-backups files are kept with the date and hour of the backup:
-• [📂 View File_Backup](Phrase1/Backups)
+backups files are kept with the date and hour of the backup:  
+
+• [📂 Backup_Folder](Backups)
 
 
