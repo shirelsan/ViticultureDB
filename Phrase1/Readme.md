@@ -14,7 +14,7 @@ Phase 1: Design and Build the Database
   
 -[DSD (Data Structure Diagram)](DSD (Data Structure Diagram))  
 
--[SQL Scripts](SQL Scripts)  
+-[SQL Scripts](SQL Scripts) 
 
 -[Data](Data)  
 
