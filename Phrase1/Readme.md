@@ -44,7 +44,7 @@ Provide the following SQL scripts:
 
 **Insert Data Script**- The SQL script for insert data to the database tables is available in the repository:  
 
-
+[📜 View Insert_Data.sql](insertTables.sql)
 **Drop Tables Script** - The SQL script for droping all tables is available in the repository:  
 
 [📜 View Drop_Tables.sql](dropTables.sql)
