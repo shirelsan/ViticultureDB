@@ -6,15 +6,15 @@
 
 ## Table of Contents  
 
--[Phase 1: Design and Build the Database](#Phase 1: Design and Build the Database)  
-
+- [Phase 1: Design and Build the Database](#phase-1-design-and-build-the-database)
+  
 -[introduction](introduction) 
 
 -[ERD (Entity-Relationship Diagram)](ERD (Entity-Relationship Diagram))   
   
 -[DSD (Data Structure Diagram)](DSD (Data Structure Diagram))  
 
--[SQL Scripts](#SQL Scripts) 
+-[SQL Scripts](#sql-scripts) 
 
 -[Data](Data)  
 
