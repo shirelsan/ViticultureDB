@@ -51,4 +51,4 @@ Provide the following SQL scripts:
 
 **Select All Data Script** - The SQL script for selectAll tables is available in the repository:  
 
-[📜 View Select_All Data.sql](SelectAll.sql)
+[📜 View Select_All Data.sql](selectAll.sql)
