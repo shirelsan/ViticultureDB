@@ -31,4 +31,6 @@
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/image%20(7).png?raw=true)  
 
 ### **DSD (Data Structure Diagram)**  
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/image%20(8).png?raw=true)
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/image%20(8).png?raw=true)  
+### **DSD (Data Structure Diagram)2**  
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DSD%20(Data%20Structure%20Diagram)2.jpeg?raw=true)
