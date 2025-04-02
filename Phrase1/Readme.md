@@ -28,7 +28,7 @@
 
 ### **ERD (Entity-Relationship Diagram)** 
 
-![ERD diagram](https://raw.githubusercontent.com/shirelsan/ViticultureDB/main/Phrase1/image-name.png)  
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/image%20(7).png?raw=true)  
 
 ### **DSD (Data Structure Diagram)**  
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/image%20(8).png?raw=true)
