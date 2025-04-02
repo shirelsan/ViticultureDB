@@ -55,7 +55,7 @@ Provide the following SQL scripts:
 [📜 View Select_All Data.sql](selectAll.sql)  
 
 ### **Data**  
-<u>**First tool: using mockaro to create csv file**<u>  
+<u>**First tool: using mockaro to create csv file**</u>  
    
   • [📂 View File_Mockaroo](mockarooFiles)  
   
@@ -68,7 +68,7 @@ Provide the following SQL scripts:
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo-pgadmin.jpeg?raw=true)
   
 
-Second tool: using python to create csv file  
+<u>Second tool: using python to create csv file</u>   
 • [📂 View File_python](Programing)  
   
   for example:  
