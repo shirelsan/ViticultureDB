@@ -28,5 +28,4 @@
 
 ### **ERD (Entity-Relationship Diagram)** 
 
-![ERD diagram](./ERD.png)
-
+![ERD diagram](https://raw.githubusercontent.com/shirelsan/ViticultureDB/main/Phrase1/image-name.png)
