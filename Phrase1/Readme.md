@@ -69,11 +69,17 @@ Second tool: using python to create csv file
 • [📂 View File_python](Programing)  
   
   for example: 
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/Programing/python.jpeg?raw=true)  
+  for example from pgadmin: 
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/mockarooFiles/mockaroo-pgadmin.jpeg?raw=true) 
 
 Third tool: using Excel to create csv file  
 • [📂 View File_Excel](DataImportFiles)  
   
-  for example: 
+   for example: 
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel.jpeg?raw=true)  
+  for example from pgadmin: 
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel-pgadmin.jpeg?raw=true) 
 
 ### **Backup**  
 
