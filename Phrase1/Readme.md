@@ -6,7 +6,7 @@
 
 ## Table of Contents  
 
--[Phase 1: Design and Build the Database](Phase 1: Design and Build the Database)  
+-[Phase 1: Design and Build the Database](#Phase 1: Design and Build the Database)  
 
 -[introduction](introduction) 
 
@@ -14,7 +14,7 @@
   
 -[DSD (Data Structure Diagram)](DSD (Data Structure Diagram))  
 
--[SQL Scripts](SQL Scripts) 
+-[SQL Scripts](#SQL Scripts) 
 
 -[Data](Data)  
 
