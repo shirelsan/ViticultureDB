@@ -108,9 +108,7 @@ Provide the following SQL scripts:
 ### **Third tool: using Excel to create csv file**  
 • [📂 View File_Excel](DataImportFiles)  
   
-   for example:   
-   
-  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel-pgadmin.jpeg?raw=true)  
+   for example: 
 
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/exel.png?raw=true)  
 
@@ -122,6 +120,6 @@ Provide the following SQL scripts:
 
 backups files are kept with the date and hour of the backup:  
 
-• [📂 Backup_Folder](Backups)
+  • [📂 Backup_Folder](Backups)
 
 
