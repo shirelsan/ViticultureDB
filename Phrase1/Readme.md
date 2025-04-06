@@ -110,8 +110,10 @@ Provide the following SQL scripts:
   
    for example:   
    
-  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel-pgadmin.jpeg?raw=true)   
-  
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel-pgadmin.jpeg?raw=true)  
+
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/exel.png?raw=true)  
+
   for example from pgadmin:  
   
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/DataImportFiles/Excel.jpeg?raw=true)   
