@@ -8,24 +8,24 @@
 
 - [Phase 1: Design and Build the Database](#phase-1-design-and-build-the-database)
   
-•[introduction](#introduction) 
-
-•[ERD (Entity-Relationship Diagram)](#erd-entity-relationship-diagram)   
+  •[Introduction](#Introduction) 
   
-•[DSD (Data Structure Diagram)](#dsd-data-structure-diagram)  
-
-•[DSD (Data Structure Diagram Second)](#dsd-data-structure-diagram-second)
-
-•[SQL Scripts](#sql-scripts) 
-
-•[Data](#data)  
-
-•[Backup](#backup)  
+  •[ERD (Entity-Relationship Diagram)](#erd-entity-relationship-diagram)   
+    
+  •[DSD (Data Structure Diagram)](#dsd-data-structure-diagram)  
+  
+  •[DSD (Data Structure Diagram Second)](#dsd-data-structure-diagram-second)
+  
+  •[SQL Scripts](#sql-scripts) 
+  
+  •[Data](#data)  
+  
+  •[Backup](#backup)  
 
 
 # Phase 1: Design and Build the Database
 
-## introduction:  
+## Introduction:  
 
 מאגר הנתונים הזה מיועד לניהול מידע הקשור לגידול גפנים, טיפול בכרמים, סוגי זני הענבים, עובדים, תחזוקה, קטיף ומלאי.  
 
@@ -65,19 +65,19 @@ Provide the following SQL scripts:
 
 **Create Tables Script** - The SQL script for creating the database tables is available in the repository:  
 
-•[📜 View create_tables.sql](createTables.sql)
+  •[📜 View create_tables.sql](createTables.sql)
 
 **Insert Data Script**- The SQL script for insert data to the database tables is available in the repository:  
 
-•[📜 View Insert_Data.sql](insertTables.sql)  
+  •[📜 View Insert_Data.sql](insertTables.sql)  
 
 **Drop Tables Script** - The SQL script for droping all tables is available in the repository:  
 
-•[📜 View Drop_Tables.sql](dropTables.sql)
+  •[📜 View Drop_Tables.sql](dropTables.sql)
 
 **Select All Data Script** - The SQL script for selectAll tables is available in the repository:  
 
-•[📜 View Select_All Data.sql](selectAll.sql)  
+  •[📜 View Select_All Data.sql](selectAll.sql)  
 
 ## **Data**  
 ### **First tool: using mockaro to create csv file**</u>  
@@ -97,6 +97,7 @@ Provide the following SQL scripts:
 • [📂 View File_python](Programing)  
   
   for example:  
+  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/Programing/py-insert.png?raw=true)   
   
   ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase1/Programing/python.jpeg?raw=true)  
   
