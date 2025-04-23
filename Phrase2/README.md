@@ -34,3 +34,11 @@ Provide the following SQL select queries:
 ### **Query 4:** How many grapes were picked from each type of vine/variety?
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query4.jpg?raw=true) 
+
+### **Query 5:** Amount of grapes harvested each month in 2025 (analysis by month) 
+ 
+ ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query5.jpg?raw=true)  
+
+### **Query 6:** Details about each vineyard – location, soil type, grape type and quantity status (did the harvest exceed 100 kg?)
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query6.jpg?raw=true) 
