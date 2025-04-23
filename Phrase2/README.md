@@ -20,12 +20,18 @@ Provide the following SQL select queries:
 
   •[📜 Select queries file.sql](SelectQueries-final.sql)
 
- **Query 1:**  
+### **Query 1:**  
  
  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query1.jpg?raw=true)  
 
- **Query 2:**  
+### **Query 2:**  
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query2.jpg?raw=true)  
 
+### **Query 3:**  
+ 
+ ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query3.jpg?raw=true)  
 
+### **Query 4:**  
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query4.jpg?raw=true) 
