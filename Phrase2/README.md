@@ -42,3 +42,11 @@ Provide the following SQL select queries:
 ### **Query 6:** Details about each vineyard – location, soil type, grape type and quantity status (did the harvest exceed 100 kg?)
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query6.jpg?raw=true) 
+
+### **Query 7:** Maintenance in vineyards with only white grapes carried out during 2025 
+ 
+ ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query7.jpg?raw=true)  
+
+### **Query 8:** Introducing workers who did both maintenance and harvesting
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query8.jpg?raw=true) 
