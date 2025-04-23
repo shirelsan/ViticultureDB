@@ -20,18 +20,18 @@ Provide the following SQL select queries:
 
   •[📜 Select queries file.sql](SelectQueries-final.sql)
 
-### **Query 1:**  
+### **Query 1:** Get all workers with their roles and the tasks they performed 
  
  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query1.jpg?raw=true)  
 
-### **Query 2:**  
+### **Query 2:** How many employees are there in each position?
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query2.jpg?raw=true)  
 
-### **Query 3:**  
+### **Query 3:** This query returns each worker's ID, name, role, and the number of maintenance tasks they have performed  
  
  ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query3.jpg?raw=true)  
 
-### **Query 4:**  
+### **Query 4:** How many grapes were picked from each type of vine/variety?
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query4.jpg?raw=true) 
