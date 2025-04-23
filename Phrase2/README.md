@@ -16,6 +16,10 @@ Provide the following SQL select queries:
 
 **Queries.sql file** -
 
-**Select Queries Script** – The SQL script containing all the `SELECT` queries used for data analysis and reporting is available in the repository.  
+**Select Queries Script** – The SQL script containing all the `SELECT` queries used for data analysis and reporting is available in the repository.   
+
+ **Query 1:**  
+ 
+ ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query1.jpg?raw=true)
 
   •[📜 Select queries file.sql](SelectQueries-final.sql)
