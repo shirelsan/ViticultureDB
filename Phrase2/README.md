@@ -14,9 +14,8 @@
 
 Provide the following SQL select queries:
 
-**Queries.sql file** -
 
-**Select Queries Script** – The SQL script containing all the `SELECT` queries used for data analysis and reporting is available in the repository.    
+### **Select Queries Script** – The SQL script containing all the `SELECT` queries used for data analysis and reporting is available in the repository.    
 
   •[📜 Select queries file.sql](SelectQueries-final.sql)
 
