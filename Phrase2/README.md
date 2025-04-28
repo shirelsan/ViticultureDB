@@ -49,4 +49,42 @@ Provide the following SQL select queries:
 
 ### **Query 8:** Introducing workers who did both maintenance and harvesting
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query8.jpg?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query8.jpg?raw=true)   
+
+## RollbackCommit queries
+
+Provide the following SQL RollbackCommit queries:  
+
+## RollbackCommitUpdate queries:  
+
+### **RollbackCommitUpdate Queries Script** – The SQL script containing all the `UPDATE` queries.    
+
+  •[📜 RollbackCommit Update queries file.sql](RollbackCommitUpdate.sql)
+
+### **Query 1:**Upgrade worker role to "Senior Harvester" if they harvested more than 50 grapes in a single event  
+ 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query1.1update.jpg?raw=true)   
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query1.2update.jpg?raw=true)  
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query1.3update.jpg?raw=true)  
+
+
+### **Query 2:** Change the maturity level to 'Stressed' for vines related to harvests with more than 65 units picked in January
+ 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query2.1update.jpg?raw=true)   
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query2.2update.jpg?raw=true)  
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query2.3update.jpg?raw=true)
+
+### **Query 3:** Increase inventory quantity by 10% where harvested quantity is greater than inventory quantity, but only for red grapes
+  
+ 
+ ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query3.1update.jpg?raw=true)   
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query3.2update.jpg?raw=true)  
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query3.3update.jpg?raw=true) 
+
