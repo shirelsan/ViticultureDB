@@ -92,7 +92,7 @@ Provide the following SQL RollbackCommit queries:
 
 Provide the following SQL Constraint queries:  
 
-### **ALTERTABLES Queries Script** – The SQL script containing all the `CONSTRRAINT` queries.    
+### **ALTERTABLES Queries Script** – The SQL script containing all the `CONSTRAINT` queries.    
 
   •[📜 Constraint queries file.sql](ALTER_TABLES.SQL)
 
