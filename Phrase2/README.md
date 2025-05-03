@@ -2,7 +2,7 @@
 
 ## Table of Contents  
 
-- [Phase 2: Integratio](#Integratio)
+- [Phase 2: Integration](#Integration)
   
   •[Introduction](#Introduction) 
   
