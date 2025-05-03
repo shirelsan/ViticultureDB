@@ -88,6 +88,33 @@ Provide the following SQL RollbackCommit queries:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query3.3update.jpg?raw=true) 
 
+## Constraint queries:  
+
+Provide the following SQL Constraint queries:  
+
+
+### **ALTERTABLES Queries Script** – The SQL script containing all the `CONSTRRAINT` queries.    
+
+  •[📜 RollbackCommit Update queries file.sql](RollbackCommitUpdate.sql)
+
+### **Constraint 1: Adding NOT NULL Harvest date cannot be empty.**  
+ 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/ALTER_TABLES.SQL/query1.1constraint.jpg?raw=true)   
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/ALTER_TABLES.SQL/query1.2constraint.jpg?raw=true)  
+
+
+
+### **Constraint 2:Adding a CHECK constraint to ensure the grape variety color is either 'Red' or 'White'** 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/ALTER_TABLES.SQL/query2.1constraint.jpg?raw=true)   
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/ALTER_TABLES.SQL/query2.2constraint.jpg?raw=true)  
+
+### **Constraint 3:Adding a DEFAULT value to the maturity_level column in the vine table** 
+
+ ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/ALTER_TABLES.SQL/query3.1constraint.jpg?raw=true)   
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/ALTER_TABLES.SQL/query3.2constraint.jpg?raw=true)  
 
 
 
