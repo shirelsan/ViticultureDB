@@ -102,6 +102,29 @@ Provide the following SQL RollbackCommit queries:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query3.3update.jpg?raw=true) 
 
+
+### **Delete Queries:**
+## Delete query 1:
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/1.png?raw=true) 
+
+הסבר לשאילתה :3 DELETE
+שאילתה זו מסירה את הקשרים בין משימות תחזוקה לכרמים בטבלת Receive, תוך התמקדות בכרמים שסוג האדמה שלהם חולי ('sandy') ושהקטיף שבוצע בהם התרחש אחרי היום החמישי בחודש.
+השאילתה משתמשת ב-JOIN כדי לקשר בין טבלת vineyard לטבלת harvest, מה שמאפשר גישה לתאריכי הקטיף. 
+הפונקציה EXTRACT משמשת לפירוק תאריך הקטיף ליום בחודש, 
+ה-GROUP BY מקבץ את התוצאות לפי מזהה הכרם, וה -ORDER BY ממיין את התוצאות לפי כמות הקטיף הגדולה ביותר בסדר יורד.
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## Constraint queries:  
 
 Provide the following SQL Constraint queries:  
