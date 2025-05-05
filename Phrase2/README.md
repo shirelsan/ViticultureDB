@@ -8,7 +8,9 @@
   
   •[select queries](#select-queries)   
     
-  •[Rollback Commit Update queries](#RollbackCommitUpdate-queries)  
+  •[Rollback Commit Update queries](#RollbackCommitUpdate-queries)
+
+  •[Constraint queries](#Delete-Queries )
   
   •[Constraint queries](#Constraint-queries)
     
