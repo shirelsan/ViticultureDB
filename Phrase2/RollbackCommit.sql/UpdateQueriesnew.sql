@@ -1,0 +1,22 @@
+-- Update Query 1: Upgrade worker role to "Senior Harvester" if they harvested more than 50 grapes in a single event
+UPDATE worker
+SET role = 'Senior Harvester'
+WHERE worker_id IN (
+    SELECT p.worker_id
+    FROM perform p
+    JOIN harvest h ON p.harvest_id = h.harvest_id
+    WHERE h.quantity > 50
+);
+
+-- Update Query 2: Change the maturity level to 'Stressed' for vines related to harvests with more than 65 units picked in January
+UPDATE vine
+SET maturity_level = 'Stressed'
+WHERE vine_id IN (
+    SELECT g.vine_id
+    FROM grape_variety g
+    JOIN vineyard v ON g.vine_id = v.vine_id
+    JOIN harvest h ON v.harvest_id = h.harvest_id
+    WHERE 
+        EXTRACT(MONTH FROM h.harvest_date) = 1 AND
+        h.quantity > 65
+);
