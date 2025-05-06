@@ -6,13 +6,13 @@
   
   •[Introduction](#Introduction) 
   
-  •[select Queries](#Select-Queries)   
+  •[Select Queries](#Select-Queries)   
     
   •[Update Queries](#Update-Queries)
 
   •[Delete Queries](#Delete-Queries )
   
-  •[Rollback & Commit](#Rollback&Commit)
+  •[Rollback & Commit](#Rollback-&-Commit)
   
   •[Constraint queries](#Constraint-queries)
     
@@ -28,7 +28,7 @@
 כחלק מחיזוק האמינות והבקרה על הנתונים, נוספו שלושה אילוצים (CONSTRAINTS) מסוגים שונים לשלוש טבלאות שונות – כולל אילוץ NOT NULL על תאריך קציר, אילוץ CHECK על צבע זן הענבים, ואילוץ DEFAULT לרמת הבשלת הגפן – כל זאת במטרה להבטיח שמירה על שלמות ועדכניות המידע.  
 
 
-## select queries
+## Select queries
 
 Provide the following SQL select queries:
 
