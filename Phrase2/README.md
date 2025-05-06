@@ -6,11 +6,13 @@
   
   •[Introduction](#Introduction) 
   
-  •[select queries](#select-queries)   
+  •[select Queries](#Select-Queries)   
     
-  •[Rollback Commit Update queries](#RollbackCommitUpdate-queries)
+  •[Update Queries](#Update-Queries)
 
   •[Delete Queries](#Delete-Queries )
+  
+  •[Rollback & Commit](#RollbackAndCommit-files)
   
   •[Constraint queries](#Constraint-queries)
     
