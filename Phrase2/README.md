@@ -73,9 +73,13 @@ Provide the following SQL RollbackCommit queries:
 
 ## RollbackCommitUpdate queries:  
 
-### **RollbackCommitUpdate Queries Script** – The SQL script containing all the `UPDATE` queries.    
+### **RollbackCommitUpdate Queries Script** – The SQL script containing all the `UPDATE` queries with rollback and commit.    
 
-  •[📜 RollbackCommit Update queries file.sql](RollbackCommitUpdate.sql)
+  •[📜 RollbackCommit Update queries file.sql](RollbackCommitUpdate.sql)  
+
+### **Update Queries Script** – The SQL script containing all the `UPDATE` queries.    
+  
+  •[📜 Update queries file.sql](UpdateQueriesnew.sql)
 
 ### **Query 1:**Upgrade worker role to "Senior Harvester" if they harvested more than 50 grapes in a single event  
  
