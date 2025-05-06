@@ -12,7 +12,7 @@
 
   •[Delete Queries](#Delete-Queries )
   
-  •[Rollback & Commit](#RollbackAndCommit-files)
+  •[Rollback & Commit](#Rollback&Commit)
   
   •[Constraint queries](#Constraint-queries)
     
