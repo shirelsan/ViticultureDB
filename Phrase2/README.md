@@ -118,6 +118,7 @@ Provide the following SQL RollbackCommit queries:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/1.png?raw=true) 
 
+#### הסבר לשאילתא:
 הסבר לשאילתה :3 DELETE
 שאילתה זו מסירה את הקשרים בין משימות תחזוקה לכרמים בטבלת Receive, תוך התמקדות בכרמים שסוג האדמה שלהם חולי ('sandy') ושהקטיף שבוצע בהם התרחש אחרי היום החמישי בחודש.
 השאילתה משתמשת ב-JOIN כדי לקשר בין טבלת vineyard לטבלת harvest, מה שמאפשר גישה לתאריכי הקטיף. 
