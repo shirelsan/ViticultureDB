@@ -111,7 +111,11 @@ Provide the following SQL RollbackCommit queries:
 
 ## **Delete Queries:**
 ### Delete query 1:
-## Delete query 1:
+
+### Delete query 2:
+
+### Delete query 3:
+
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/1.png?raw=true) 
 
 הסבר לשאילתה :3 DELETE
