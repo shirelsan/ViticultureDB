@@ -117,7 +117,15 @@ Provide the following SQL RollbackCommit queries:
 #### הסבר לשאילתא:
 השאילתה מוחקת מטבלה grape_variety  את כל סוגי הענבים שצבעם אדום,
 ונשתלו בחודש יולי.
-המחיקה מתבצעת על בסיס זיהוי  grape_variety_id דרך שאילתה פנימית שמבצעת JOIN  עם טבלת vine,כדי לבדוק את תאריך השתילה (v_date) ולוודא שהוא בחודש 7 (יולי), תוך שימוש ב־EXTRACT(MONTH ...)
+המחיקה מתבצעת על בסיס זיהוי  grape_variety_id דרך שאילתה פנימית שמבצעת JOIN  עם טבלת vine,כדי לבדוק את תאריך השתילה (v_date) ולוודא שהוא בחודש 7 (יולי), תוך שימוש ב־EXTRACT(MONTH)
+
+#### דוגמה לשורה שאמורה להימחק:
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/2A.png?raw=true) 
+#### תיאור תהליך בסיס הנתונים לאחר מחיקה ביצוע Rollback$Comit לטובת החזרה הנתונים והרצת שאילתת המחיקה בשנית: 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/3A.png?raw=true) 
+
 
 ### Delete query 2:
 
