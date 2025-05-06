@@ -10,7 +10,7 @@
     
   •[Rollback Commit Update queries](#RollbackCommitUpdate-queries)
 
-  •[Constraint queries](#Delete-Queries )
+  •[Delete Queries](#Delete-Queries )
   
   •[Constraint queries](#Constraint-queries)
     
