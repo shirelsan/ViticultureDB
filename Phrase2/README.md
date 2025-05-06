@@ -67,15 +67,8 @@ Provide the following SQL select queries:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/SelectQueriesSQL/query8.jpg?raw=true)   
 
-## RollbackCommit queries
 
-Provide the following SQL RollbackCommit queries:  
-
-## RollbackCommitUpdate queries:  
-
-### **RollbackCommitUpdate Queries Script** – The SQL script containing all the `UPDATE` queries with rollback and commit.    
-
-  •[📜 RollbackCommit Update queries file.sql](RollbackCommitUpdate.sql)  
+## **Update Queries:**
 
 ### **Update Queries Script** – The SQL script containing all the `UPDATE` queries.    
   
@@ -164,6 +157,24 @@ Provide the following SQL RollbackCommit queries:
 #### תיאור תהליך בסיס הנתונים לאחר מחיקה ביצוע Rollback$Comit לטובת החזרה הנתונים והרצת שאילתת המחיקה בשנית: 
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/3C.png?raw=true) 
+
+## Rollback&Commit
+
+Provide the following SQL RollbackCommit queries
+
+את שאילתות העדכון והמחיקה ביצענו תוך שימוש ב־COMMIT ו־ROLLBACK, כדי להדגים את תהליך שינוי הנתונים בטבלאות 
+
+מצורפים שני קבצים הכוללים את שאילתות העדכון והמחיקה, יחד עם הרצה של הפקודות ROLLBACK ו־COMMIT :
+### **RollbackCommitUpdate Queries Script** – 
+The SQL script containing all the `UPDATE` queries with rollback and commit.    
+
+  •[📜 Rollback$Commit Update queries file.sql](RollbackCommitUpdate.sql)  
+
+### **RollbackCommitDelete Queries Script** – 
+The SQL script containing all the `DELETE` queries with rollback and commit.    
+
+  •[📜 Rollback$Commit Delete queries file.sql](delete_rollback&commit.sql)  
+
 
 
 ## Constraint queries:  
