@@ -109,7 +109,8 @@ Provide the following SQL RollbackCommit queries:
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/RollbackCommit.sql/query3.3update.jpg?raw=true) 
 
 
-### **Delete Queries:**
+## **Delete Queries:**
+### Delete query 1:
 ## Delete query 1:
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/1.png?raw=true) 
 
