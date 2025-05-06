@@ -110,18 +110,22 @@ Provide the following SQL RollbackCommit queries:
 
 
 ## **Delete Queries:**
+ 
+ •[📜 Delete Queriess file.sql](delete_queries.sql)
+ 
 ### Delete query 1:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/1A.png?raw=true) 
 
-#### הסבר לשאילתא:
+#### הסבר על השאילתא:
 השאילתה מוחקת מטבלה grape_variety  את כל סוגי הענבים שצבעם אדום,
 ונשתלו בחודש יולי.
 המחיקה מתבצעת על בסיס זיהוי  grape_variety_id דרך שאילתה פנימית שמבצעת JOIN  עם טבלת vine,כדי לבדוק את תאריך השתילה (v_date) ולוודא שהוא בחודש 7 (יולי), תוך שימוש ב־EXTRACT(MONTH)
 
-#### דוגמה לשורה שאמורה להימחק:
+#### דוגמה לנתון שימחק לאחר הרצת השאילתא:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/2A.png?raw=true) 
+
 #### תיאור תהליך בסיס הנתונים לאחר מחיקה ביצוע Rollback$Comit לטובת החזרה הנתונים והרצת שאילתת המחיקה בשנית: 
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/3A.png?raw=true) 
@@ -131,31 +135,35 @@ Provide the following SQL RollbackCommit queries:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/1B.png?raw=true) 
 
-#### הסבר לשאילתא:
+#### הסבר על השאילתא:
 שאילתה זו מוחקת את הקשרים בין עובדים לקטיפים בטבלת perform, אך רק עבור עובדים שהם קוטפים (Harvester) ולא ביצעו משימות תחזוקה בחודש פברואר 2025.
 השאילתה מורכבת משלוש רמות: השאילתה הראשית מוחקת מטבלת perform, התת-שאילתה האמצעית מאתרת את כל הקוטפים, והתת-שאילתה הפנימית מסננת החוצה עובדים שביצעו תחזוקה בפברואר 2025.
 השימוש ב-GROUP BY מאפשר חלוקה לקבוצות לפי מזהה עובד, בעוד הפונקציה EXTRACT מפרקת את התאריך למרכיבי חודש ושנה, מה שמאפשר סינון מדויק יותר של הנתונים.
+
+
+#### תיאור תהליך בסיס הנתונים לאחר מחיקה ביצוע Rollback$Comit לטובת החזרה הנתונים והרצת שאילתת המחיקה בשנית: 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/3B.png?raw=true) 
+
+
 
 ### Delete query 3:
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/1.png?raw=true) 
 
-#### הסבר לשאילתא:
+#### הסבר על השאילתא:
 שאילתה זו מסירה את הקשרים בין משימות תחזוקה לכרמים בטבלת Receive, תוך התמקדות בכרמים שסוג האדמה שלהם חולי ('sandy') ושהקטיף שבוצע בהם התרחש אחרי היום החמישי בחודש.
 השאילתה משתמשת ב-JOIN כדי לקשר בין טבלת vineyard לטבלת harvest, מה שמאפשר גישה לתאריכי הקטיף. 
 הפונקציה EXTRACT משמשת לפירוק תאריך הקטיף ליום בחודש, 
 ה-GROUP BY מקבץ את התוצאות לפי מזהה הכרם, וה -ORDER BY ממיין את התוצאות לפי כמות הקטיף הגדולה ביותר בסדר יורד.
 
+#### דוגמה לנתון שימחק לאחר הרצת השאילתא:
 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/2C.png?raw=true) 
 
+#### תיאור תהליך בסיס הנתונים לאחר מחיקה ביצוע Rollback$Comit לטובת החזרה הנתונים והרצת שאילתת המחיקה בשנית: 
 
-
-
-
-
-
-
-
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/3C.png?raw=true) 
 
 
 ## Constraint queries:  
