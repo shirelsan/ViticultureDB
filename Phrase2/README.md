@@ -12,7 +12,7 @@
 
   •[Delete Queries](#Delete-Queries )
   
-  •[Rollback & Commit](#Rollback-&-Commit)
+  •[Rollback & Commit](#Rollback-And-Commit)
   
   •[Constraint queries](#Constraint-queries)
     
@@ -166,7 +166,7 @@ Increase inventory quantity by 10% where harvested quantity is greater than inve
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase2/Delete%20Queries/3C.png?raw=true) 
 
-## Rollback&Commit
+## Rollback And Commit
 
 Provide the following SQL RollbackCommit queries
 
@@ -176,12 +176,12 @@ Provide the following SQL RollbackCommit queries
 ### **RollbackCommitUpdate Queries Script** – 
 The SQL script containing all the `UPDATE` queries with rollback and commit.    
 
-  •[📜 Rollback$Commit Update queries file.sql](RollbackCommitUpdate.sql)  
+  •[📜 Rollback And Commit Update queries file.sql](RollbackCommitUpdate.sql)  
 
 ### **RollbackCommitDelete Queries Script** – 
 The SQL script containing all the `DELETE` queries with rollback and commit.    
 
-  •[📜 Rollback$Commit Delete queries file.sql](delete_rollback&commit.sql)  
+  •[📜 Rollback And Commit Delete queries file.sql](delete_rollback&commit.sql)  
 
 
 
