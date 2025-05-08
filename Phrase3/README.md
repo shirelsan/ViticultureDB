@@ -1,4 +1,4 @@
-# Phase 2: Integration: 
+# Phase 3: Integration & View: 
 
 ## Table of Contents  
 
