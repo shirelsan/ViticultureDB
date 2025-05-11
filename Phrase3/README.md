@@ -51,6 +51,9 @@
 
 המודל המשולב שיצרנו מהווה בסיס איתן למערכת מידע מקיפה שתתמוך בכל שלבי הייצור והעיבוד של היין, ותאפשר ניהול מיטבי של משאבי היקב והכרם כאחד.   
 
+[Backup of the](Phrase3/Backup_22042025%20(1).backup)
+
+
 ## **DSD (Data Structure Diagram from the PgAdmin)**  
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfromthepgadmin.png?raw=true)
