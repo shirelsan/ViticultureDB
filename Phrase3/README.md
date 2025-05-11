@@ -49,4 +49,17 @@
 
 • לתכנן מבטים (Views) שיאפשרו להציג מידע משולב משתי המערכות, כגון מעקב אחר ענבים מזן מסוים מרגע הנטיעה ועד להפיכתם ליין בבקבוק.
 
-המודל המשולב שיצרנו מהווה בסיס איתן למערכת מידע מקיפה שתתמוך בכל שלבי הייצור והעיבוד של היין, ותאפשר ניהול מיטבי של משאבי היקב והכרם כאחד.
+המודל המשולב שיצרנו מהווה בסיס איתן למערכת מידע מקיפה שתתמוך בכל שלבי הייצור והעיבוד של היין, ותאפשר ניהול מיטבי של משאבי היקב והכרם כאחד.   
+
+## **DSD (Data Structure Diagram from the PgAdmin)**  
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSD.png?raw=true)
+
+## **ERD (Entity-Relationship Diagram)** 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERD.png?raw=true)  
+
+## **DSD (Data Structure Diagram Second from the ERD)**  
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSD%20(Data%20Structure%20Diagram)2.jpeg?raw=true) 
+
