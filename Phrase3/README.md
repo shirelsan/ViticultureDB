@@ -53,12 +53,12 @@
 
 ## **DSD (Data Structure Diagram from the PgAdmin)**  
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSD from the pgadmin.png?raw=true)
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfromthepgadmin.png?raw=true)
 ## **ERD (Entity-Relationship Diagram)** 
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERD.png?raw=true)  
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDfromthedsd.png?raw=true)  
 
 ## **DSD (Data Structure Diagram Second from the ERD)**  
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSD from the ERD.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfromtheERD.png?raw=true) 
 
