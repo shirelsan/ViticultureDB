@@ -128,10 +128,6 @@
 
 **תמונה של הרצת השאילתה+הטבלה שנוצרה:**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/Q2-V1.png?raw=true) 
-
-**תמונה של הטבלה הנוצרת לאחר הרצת השאילתה:**
-
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/Q2-V1-2.png?raw=true) 
 
 
