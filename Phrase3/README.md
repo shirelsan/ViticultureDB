@@ -69,7 +69,7 @@
 
 ## **Merged ERD of the 2 DB (Entity-Relationship Diagram)** 
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDproductiomwineandgrowinggrapes.jpg?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDproductiomwineandgrowinggrapes.png?raw=true) 
 
 
 
