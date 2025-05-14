@@ -140,7 +140,7 @@
 **תיאור מילולי:**
 המבט production_overview מציג מידע כולל על תהליכי ייצור היין.
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2.png.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2.png?raw=true) 
 
 **הטבלה שנוצרה לאחר הרצת הview:**
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2-1.png?raw=true) 
