@@ -65,5 +65,9 @@
 
 ## **DSD (Data Structure Diagram Second from the ERD)**  
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfromtheERD.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfromtheERD.png?raw=true)   
+
+## **Merged ERD of the 2 DB (Entity-Relationship Diagram)** 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/Phrase3/ERDproductiomwineandgrowinggrapes?raw=true) 
 
