@@ -71,3 +71,20 @@
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDproductiomwineandgrowinggrapes?raw=true) 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Views:
+## **View 1 - view_maintenance_task_info
+תיאור מילולי:
+המבט maintenance_task_info נועד להציג מידע מרוכז עבור משימות תחזוקה שהתבצעו בכרמים.
