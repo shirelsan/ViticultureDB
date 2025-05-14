@@ -95,6 +95,7 @@
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/Q1-V1.png?raw=true) 
 
 **הטבלה שנוצרה לאחר הרצת הview:**
+
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/Q1-V1-2.png?raw=true) 
 
 
@@ -114,7 +115,8 @@
 באמצעות שילוב זה, ניתן לקבל תמונה מלאה על משימות שבוצעו:
 מי ביצע אותן, מתי, מה היה סוג המשימה, ובאיזה מיקום וסוג קרקע היא בוצעה.
 
-**שאילתה 1:**
+###**שאילתה 1:**
+
 מציגה את מספר משימות התחזוקה שבוצעו בכל סוג קרקע.
 המטרה היא להבין אילו סוגי קרקע דורשים הכי הרבה תחזוקה, על ידי ספירה של מספר המשימות שבוצעו בכל אחד מהם.
 התוצאה ממוינת כך שסוג הקרקע עם הכי הרבה משימות יופיע ראשון.
@@ -124,7 +126,7 @@
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/Q1-V1-3.png?raw=true) 
 
 
-**שאילתה 2:**   
+###**שאילתה 2:**   
 
 מזהה עבור כל כרם את העובד שביצע בו את מספר משימות התחזוקה הגבוה ביותר.
 השאילתה עושה שימוש בתת-שאילתה כדי למצוא את מספר המשימות המקסימלי בכל כרם, ומשווה אליו את מספר המשימות של כל עובד באותו כרם.
@@ -143,6 +145,7 @@
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2.png?raw=true) 
 
 **הטבלה שנוצרה לאחר הרצת הview:**
+
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2-1.png?raw=true) 
 
 
