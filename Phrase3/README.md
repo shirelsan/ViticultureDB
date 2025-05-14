@@ -92,7 +92,7 @@
 **תיאור מילולי:**
 המבט maintenance_task_info נועד להציג מידע מרוכז עבור משימות תחזוקה שהתבצעו בכרמים.
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/Q1-V1.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view.old.1.png?raw=true) 
 
 **הטבלה שנוצרה לאחר הרצת הview:**
 
