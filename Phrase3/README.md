@@ -104,6 +104,10 @@
 
 **תמונה שממחישה זאת:**
 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/merge4.jpg?raw=true) 
+
+
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/merge3.jpg?raw=true) 
 
 
