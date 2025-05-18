@@ -111,6 +111,7 @@
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/merge3.jpg?raw=true) 
 
 
+### **שינוי רביעי שעשינו זה קשר חדש בין Vine ל- Harvest** 
 
 
 
