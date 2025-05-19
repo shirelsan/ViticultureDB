@@ -78,6 +78,8 @@
 
 ## **הסבר על הERD הממוזג:**  
 
+ •[📜Integrate file of wine production and growing grapes ](merge/Integrate.sql)  
+
 ניתן לראות בתמונה ERD שממזג בין ייצור יין לגידול גפנים. ניתן לראות שיש קשר בין 2 התחומים בכמה דברים כגון קשר בין מלאי לתהליך ייצור, קשר בין עובד לתהליך ייצור ועוד...  
 
 נפרט פה על השינויים העיקריים שעשינו, ראשית מה שנשאר אותו דבר זה מכיוון שלא היה שייך ליצור קשרים בין היישויות האלו.  
