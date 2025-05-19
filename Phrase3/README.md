@@ -71,6 +71,11 @@
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDproductiomwineandgrowinggrapes.png?raw=true) 
 
+## **Merged DSD of the 2 DB**
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfinal.png?raw=true) 
+
+
 ## **הסבר על הERD הממוזג:**  
 
 ניתן לראות בתמונה ERD שממזג בין ייצור יין לגידול גפנים. ניתן לראות שיש קשר בין 2 התחומים בכמה דברים כגון קשר בין מלאי לתהליך ייצור, קשר בין עובד לתהליך ייצור ועוד...  
