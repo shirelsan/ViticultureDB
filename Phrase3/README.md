@@ -217,52 +217,53 @@
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/Q2-V1-2.png?raw=true) 
 
+## **View 2 - view_container_process_info 
 
-## **View 2 - production_overview
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/1.jpeg?raw=true) 
 
-**תיאור מילולי:**
-המבט production_overview מציג מידע כולל על תהליכי ייצור היין.
-
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2.png?raw=true) 
 
 **הטבלה שנוצרה לאחר הרצת הview:**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2-1.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/2.jpeg?raw=true) 
+
 
 
 **הסבר על המבט:** 
+המבט container_process_info מציג מידע מקיף על השימוש במיכלים בתהליכי הייצור.
+הוא מחבר בין טבלאות המיכלים, תהליכי הייצור והקשרים ביניהם, כדי לספק תצוגה אינטגרטיבית הכוללת:
 
-המבט production_overview מציג מידע כולל על תהליכי ייצור היין.
-הוא מחבר בין טבלאות של תהליך הייצור, העובדים, הענבים והמוצר הסופי, כדי לספק תצוגה מקיפה שכוללת:
+• מזהה המיכל, סוגו וקיבולת הליטרים שלו.
 
- • מזהה התהליך, סוגו, תאריכי התחלה וסיום, ומספר סידורי.
+• מזהה התהליך בו נעשה שימוש במיכל.
 
- • שם ותפקיד העובד האחראי.
-  
- • סוג הענבים ותאריך הבציר. 
+• סוג התהליך, תאריך התחלה ותאריך סיום.
 
- • סוג היין שיוצר, תאריך הביקבוק ומספר הבקבוקים שיוצרו. 
+• מספר האצווה של המוצר הסופי הקשור לתהליך.
 
- 
+באמצעות מבט זה ניתן להבין אילו מיכלים שימשו באילו תהליכים, לנתח את ההתאמה בין סוג התהליך לקיבולת המיכל, ולעקוב אחר השפעת בחירת המיכל על תהליך הייצור והמוצר המוגמר.
+
+
 ### **שאילתה 1:**
-תיאור מילולי:
-שאילתה זו מסכמת את מספר הבקבוקים שיוצרו מכל סוג יין.
-המטרה: לזהות אילו סוגי יין הם הפופולריים ביותר בתהליך הייצור.
+
+תיאור מילולי:השאילתה מחשבת את סך קיבולת המיכלים (בליטרים) שנעשה בהם שימוש, לפי סוג תהליך הייצור.
+המטרה היא להבין אילו סוגי תהליכים דורשים שימוש רב יותר במיכלים מבחינת נפח כולל.
+
+
 
 **תמונה של הרצת השאילתה+הטבלה שנוצרה:**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/v2-q1.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/3.jpeg?raw=true) 
 
 
+### **שאילתה 2:**   
+
+תיאור מילולי:תהליכי הייצור שנמשכו הכי הרבה זמן, ושנעשה בהם שימוש במיכלים הגדולים ביותר.
+המטרה היא לזהות אילו תהליכים ממושכים דרשו שימוש במיכלים הגדולים ביותר, כדי להסיק על הקשר בין משך התהליך לציוד הדרוש.
 
 
-### **שאילתה 2:**
-תיאור מילולי:
-שאילתה זו מזהה את העובדים שהיו אחראים למספר הרב ביותר של תהליכי ייצור.
-המטרה: לזהות עובדים מובילים או כאלו שמרבים לקחת חלק בייצור,העובדים יוצגו בסדר יורד לפי מספר תהליכי הייצור שהיו שותפים בהם.
 
 **תמונה של הרצת השאילתה+הטבלה שנוצרה:**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/V2-q2-2.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/4.jpeg?raw=true) 
 
 
