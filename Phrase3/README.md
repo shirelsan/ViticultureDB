@@ -12,7 +12,7 @@
 
   •[DSD (Data Structure Diagram Second from the ERD)](#dsd--data-structure-diagram-second-from-the-erd-)
   
-  •[Merged ERD of the 2 DB (Entity-Relationship Diagram)](#merged-erd-of-the-2-db--entity-relationship-diagram-)
+  •[Merged ERD of the 2 DB](#merged-erd-of-the-2-db-)
   
   •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
   
@@ -83,7 +83,7 @@
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfromtheERD.png?raw=true)   
 
-## **Merged ERD of the 2 DB (Entity-Relationship Diagram)** 
+## **Merged ERD of the 2 DB ** 
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDproductiomwineandgrowinggrapes.png?raw=true) 
 
