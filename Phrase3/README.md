@@ -6,13 +6,13 @@
   
   •[Backup file of wine production](#backup-file-of-wine-production) 
   
-  •[DSD - Data Structure Diagram from the PgAdmin](#dsd---data-structure-diagram-from-the-pgadmin)   
+ •[DSD (Data Structure Diagram from the PgAdmin)](#dsd--data-structure-diagram-from-the-pgadmin-)   
     
-  •[ERD - Entity Relationship Diagram](#erd---entity-relationship-diagram)
+  •[ERD (Entity-Relationship Diagram)](#erd-(entity-relationship-diagram))
 
-  •[DSD Second from the ERD](#dsd-second-from-the-erd)
+  •[DSD (Data Structure Diagram Second from the ERD)](#dsd--data-structure-diagram-second-from-the-erd-)
   
-  •[Merged ERD of the 2 DB](#merged-erd-of-the-2-db)
+  •[Merged ERD of the 2 DB (Entity-Relationship Diagram)](#merged-erd-of-the-2-db--entity-relationship-diagram-)
   
   •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
   
