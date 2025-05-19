@@ -2,6 +2,26 @@
 
 ## Table of Contents  
 
+- [Phase 3: Integration](#Integration)
+  
+  •[Backup file of wine production](#Backup file of wine production) 
+  
+  •[DSD (Data Structure Diagram from the PgAdmin)](#DSD (Data Structure Diagram from the PgAdmin))   
+    
+  •[ERD (Entity-Relationship Diagram)](#ERD (Entity-Relationship Diagram))
+
+  •[DSD (Data Structure Diagram Second from the ERD)](#DSD (Data Structure Diagram Second from the ERD) )
+  
+  •[Merged ERD of the 2 DB (Entity-Relationship Diagram)](#Merged ERD of the 2 DB (Entity-Relationship Diagram))
+  
+  •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
+  
+  •[הסבר על הERD הממוזג](#הסבר-על-הERD-הממוזג)
+  
+  •[Views](#views)
+    
+  •[Backup](#backup) 
+
 
 
 
