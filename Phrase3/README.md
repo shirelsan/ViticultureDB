@@ -83,7 +83,7 @@
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfromtheERD.png?raw=true)   
 
-## **Merged ERD of the 2 DB ** 
+## **Merged ERD of the 2 DB** 
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDproductiomwineandgrowinggrapes.png?raw=true) 
 
