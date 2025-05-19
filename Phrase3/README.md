@@ -71,10 +71,13 @@
 
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/ERDproductiomwineandgrowinggrapes.png?raw=true) 
 
-## **Merged DSD of the 2 DB**
+## **Merged DSD of the 2 DB from ERDplus**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/dsdfinal.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/dsdfinal.png?raw=true)
 
+## **Merged DSD of the 2 DB from PgAdmin**
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDend.png?raw=true) 
 
 ## **הסבר על הERD הממוזג:**  
 
