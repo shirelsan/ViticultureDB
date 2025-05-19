@@ -43,43 +43,53 @@ WHERE m2.vineyard_location = maintenance_task_info.vineyard_location
 GROUP BY m2.worker_name ) AS sub )
 ORDER BY vineyard_location;
 
+
+
 --view2-the other DB
+CREATE VIEW container_process_info AS
+SELECT 
+    pc.ContainerID_,
+    c.Type_ AS ContainerType,
+    c.CapacityL_,
+    pp.ProcessID_,
+    pp.Type_ AS ProcessType,
+    pp.StartDate_,
+    pp.EndDate_,
+    pp.BatchNumber_
+FROM processContainers pc
+JOIN Containers_ c ON pc.ContainerID_ = c.ContainerID_
+JOIN ProductionProcess_ pp ON pc.ProcessID_ = pp.ProcessID_;
 
-CREATE VIEW production_overview AS
-SELECT
-    pp.processid_,
-    pp.type_ AS process_type,
-    pp.startdate_,
-    pp.enddate_,
-    pp.seqnumber,
-    e.name AS employee_name,
-    e.role AS employee_role,
-    g.variety AS grape_variety,
-    g.harvestdate_ AS grape_harvest_date,
-    f.winetype_,
-    f.bottlingdate_,
-    f.numbottls
-FROM
-    productionprocess_ pp
-JOIN employee e ON pp.employeeid = e.employeeid
-JOIN grapes g ON pp.grapeid = g.grapeid
-JOIN finalproduct_ f ON pp.batchnumber_ = f.batchnumber_;
+--שאילתה 1: סך כל קיבולת המיכלים בהם השתמשו לפי סוג תהליך
 
--- query1
-SELECT winetype_, SUM(numbottls) AS total_bottles
-FROM production_overview
-GROUP BY winetype_
-ORDER BY total_bottles DESC;
+SELECT ProcessType, SUM(CapacityL_) AS TotalCapacityUsed
+FROM container_process_info
+GROUP BY ProcessType
+ORDER BY TotalCapacityUsed DESC;
 
--- query2
-SELECT
-    employee_name,
-    employee_role,
-    COUNT(processid_) AS total_processes
-FROM
-    production_overview
-GROUP BY
-    employee_name, employee_role
-ORDER BY
-    total_processes DESC;
+--שאילתה 2:?מהם תהליכי הייצור שנמשכו הכי הרבה זמן, ושנעשה בהם שימוש במיכלים הגדולים ביותר
+SELECT cpi.ProcessID_,cpi.ContainerID_,cpi.CapacityL_,pp.StartDate_,pp.EndDate_,
+    (pp.EndDate_ - pp.StartDate_) AS DurationDays
+FROM container_process_info AS cpi
+JOIN ProductionProcess_ AS pp ON cpi.ProcessID_ = pp.ProcessID_
+WHERE cpi.CapacityL_ = (SELECT MAX(CapacityL_) FROM container_process_info)
+ORDER BY  DurationDays DESC;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
