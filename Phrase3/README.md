@@ -73,7 +73,7 @@
 
 ## **Merged DSD of the 2 DB**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/DSDfinal.png?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/dsdfinal.png?raw=true) 
 
 
 ## **הסבר על הERD הממוזג:**  
