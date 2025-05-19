@@ -12,7 +12,7 @@
 
 •[DSD (Data Structure Diagram Second from the ERD)](#dsd-data-structure-diagram-second-from-the-erd)
   
-•[Merged DSD of the 2 DB from ERDplus](#merged-erd-of-the-2-db-from-erdplus)
+•[Merged DSD of the 2 DB from ERDplus](#merged-dsd-of-the-2-db-from-erdplus)
   
 •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
   
