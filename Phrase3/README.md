@@ -219,6 +219,11 @@
 
 ## **View 2 - view_container_process_info 
 
+**תיאור מילולי:**
+
+המבט container_process_info נועד להציג מידע מרוכז על תהליכי ייצור והשימוש שנעשה במיכלים במסגרת תהליכים אלו.
+
+
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/view/1.jpeg?raw=true) 
 
 
