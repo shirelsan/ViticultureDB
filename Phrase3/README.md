@@ -132,7 +132,10 @@
 
 **הרצה שלב 1 לטבלת Harvest :**
 
-*******************תמונההההההההההההההההההההההההה של ההרצה + של טבלה 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.1.jpg?raw=true) 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.2.jpg?raw=true) 
+
 
 • הכנסו רק harvest_date ול- quantity או inventory_id מכניסים NULL.
 
@@ -149,15 +152,15 @@
 
 חלק א - הוספת ערכים חסרים ל־vine כלומר מוסיף ל־vine את כל ה־grapeids שלא קיימים שם, עם ערכים חסרים.
 
-********************תמונה של הרצה חלק א
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.1.jpg?raw=true) 
 
 חלק ב - ההכנסה ל־vineyard רק עבור רשומות שעדיין לא קיימות, עם vine_id תקף.
 
-**************** תמונה של חלק 2 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.2.jpg?raw=true) 
 
 **תמונה שממחישה את המיזוג:**
 
-*******************תמונה של הטבלה עם הנתונים 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.3.jpg?raw=true) 
 
 
 # Views:  
