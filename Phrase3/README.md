@@ -116,7 +116,20 @@
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/merge3.jpg?raw=true) 
 
 
-### **שינוי רביעי שעשינו זה קשר חדש בין Vine ל- Harvest** 
+### **שינוי רביעי שעשינו זה הכנסת הנתונים מטבלת Grapes בDB שקיבלנו לטבלאות Harvest וVineyard** 
+המטרה: מיזוג הנתונים מהטבלה grapes (DB שקיבלנו) אל תוך הטבלאות הקיימות ב־DB שלנו ללא כפילויות.
+התאמת בין השדות : 
+
+| טבלת היעד (DB שלך) | טבלת המקור (grapes) |
+| ------------------ | ------------------- |
+| `vine_id`          | `grapeid`           |
+| `harvest_date`     | `harvestdate_`      |
+
+
+
+
+
+
 
 
 
