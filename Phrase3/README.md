@@ -8,13 +8,13 @@
   
  •[DSD (Data Structure Diagram from the PgAdmin)](#dsd--data-structure-diagram-from-the-pgadmin-)   
     
-  •[ERD (Entity-Relationship Diagram)](#erd-(entity-relationship-diagram))
+ •[ERD (Entity-Relationship Diagram)](#erd-(entity-relationship-diagram))
 
-  •[DSD (Data Structure Diagram Second from the ERD)](#dsd--data-structure-diagram-second-from-the-erd-)
+ •[DSD (Data Structure Diagram Second from the ERD)](#dsd-data-structure-diagram-second-from-the-erd)
   
-  •[Merged ERD of the 2 DB](#merged-erd-of-the-2-db-)
+ •[Merged ERD of the 2 DB](#merged-erd-of-the-2-db-)
   
-  •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
+ •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
   
   •[הסבר על הERD הממוזג](#הסבר-על-הERD-הממוזג)
   
