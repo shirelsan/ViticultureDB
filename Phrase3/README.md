@@ -6,9 +6,9 @@
   
   •[Backup file of wine production](#backup-file-of-wine-production) 
   
- •[DSD (Data Structure Diagram from the PgAdmin)](#dsd--data-structure-diagram-from-the-pgadmin-)   
+ •[DSD (Data Structure Diagram from the PgAdmin)](#dsd-data-structure-diagram-from-the-pgadmin)   
     
- •[ERD (Entity-Relationship Diagram)](#erd-(entity-relationship-diagram))
+ •[ERD (Entity-Relationship Diagram)](#erd-entity-relationship-diagram)
 
  •[DSD (Data Structure Diagram Second from the ERD)](#dsd-data-structure-diagram-second-from-the-erd)
   
