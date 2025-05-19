@@ -67,7 +67,7 @@
 
 המודל המשולב שיצרנו מהווה בסיס איתן למערכת מידע מקיפה שתתמוך בכל שלבי הייצור והעיבוד של היין, ותאפשר ניהול מיטבי של משאבי היקב והכרם כאחד.   
 
-## **Backup file of wine production **
+## Backup file of wine production
 
  •[📜Backup file of wine production ](Backup_22042025%20(1).backup)  
  
