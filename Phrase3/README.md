@@ -132,9 +132,9 @@
 
 **הרצה שלב 1 לטבלת Harvest :**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.1.jpeg?raw=true) 
-
 ![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.2.jpeg?raw=true) 
+
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.1.jpeg?raw=true) 
 
 
 • הכנסו רק harvest_date ול- quantity או inventory_id מכניסים NULL.
