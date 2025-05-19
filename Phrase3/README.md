@@ -132,9 +132,9 @@
 
 **הרצה שלב 1 לטבלת Harvest :**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.1.jpg?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.1.jpeg?raw=true) 
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.2.jpg?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/1.2.jpeg?raw=true) 
 
 
 • הכנסו רק harvest_date ול- quantity או inventory_id מכניסים NULL.
@@ -152,15 +152,15 @@
 
 חלק א - הוספת ערכים חסרים ל־vine כלומר מוסיף ל־vine את כל ה־grapeids שלא קיימים שם, עם ערכים חסרים.
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.1.jpg?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.1.jpeg?raw=true) 
 
 חלק ב - ההכנסה ל־vineyard רק עבור רשומות שעדיין לא קיימות, עם vine_id תקף.
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.2.jpg?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.2.jpeg?raw=true) 
 
 **תמונה שממחישה את המיזוג:**
 
-![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.3.jpg?raw=true) 
+![ERD diagram](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase3/merge/2.3.jpeg?raw=true) 
 
 
 # Views:  
