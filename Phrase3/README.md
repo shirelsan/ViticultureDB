@@ -4,7 +4,7 @@
 
  •[Phase 3: Introduction](#introduction)
   
-•[Backup file of wine production](#backup-file-of-wine-production) 
+•[Backup file of wine production](backup-file-of-wine-production) 
   
 •[DSD (Data Structure Diagram from the PgAdmin)](#dsd-data-structure-diagram-from-the-pgadmin)   
     
@@ -12,7 +12,7 @@
 
 •[DSD (Data Structure Diagram Second from the ERD)](#dsd-data-structure-diagram-second-from-the-erd)
   
-•[Merged ERD of the 2 DB](#merged-erd-of-the-2-db-)
+•[Merged DSD of the 2 DB from ERDplus](#merged-erd-of-the-2-db-from-erd-plus)
   
 •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
   
@@ -67,7 +67,7 @@
 
 המודל המשולב שיצרנו מהווה בסיס איתן למערכת מידע מקיפה שתתמוך בכל שלבי הייצור והעיבוד של היין, ותאפשר ניהול מיטבי של משאבי היקב והכרם כאחד.   
 
-## *Backup file of wine production **
+## **Backup file of wine production **
 
  •[📜Backup file of wine production ](Backup_22042025%20(1).backup)  
  
