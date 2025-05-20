@@ -16,7 +16,7 @@
   
 •[Merged DSD of the 2 DB from PgAdmin](#merged-dsd-of-the-2-db-from-pgadmin)
   
-  •[הסבר על הERD הממוזג](#הסבר-על-הERD-הממוזג)
+  •[ERD הממוזג](#הסבר-על-הERD-הממוזג)
   
   •[Views](#views)
     
