@@ -2,7 +2,7 @@
 
 ## Introduction:
 
-## functions:
+## Functions:
 
 
 • **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
