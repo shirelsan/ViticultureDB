@@ -52,7 +52,7 @@ BEGIN
         FROM worker
         WHERE Year_of_starting_work <= min_years;
 
-    RETURN; 
+    RETURN;  
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
   ```
