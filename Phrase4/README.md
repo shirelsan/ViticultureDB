@@ -267,7 +267,7 @@ cutoff_date='2025-05-01
 
 
 
-**תמונה שממחישה את השינוי לפני ואחרי**
+**תמונה שממחישה את השינוי לפני**
 
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc2.jpg?raw=true)  
 
