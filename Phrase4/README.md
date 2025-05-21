@@ -203,8 +203,56 @@ $$;
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc1.jpg?raw=true)  
 
 • **פרוצדורה שנייה-**
+  ```
+CREATE OR REPLACE PROCEDURE update_inventory_from_harvests(cutoff_date DATE)
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    rec RECORD;
+BEGIN
+    FOR rec IN
+        SELECT h.harvest_id, h.quantity, h.inventory_id, p.worker_id
+        FROM harvest h
+        JOIN perform p ON h.harvest_id = p.harvest_id
+        WHERE h.harvest_date <= cutoff_date
+    LOOP
+        BEGIN
+            -- עדכון הכמות במלאי לפי כמות הקציר
+            UPDATE inventory
+            SET inventory_quantity = inventory_quantity + rec.quantity
+            WHERE inventory_id = rec.inventory_id;
+
+            -- עדכון תפקיד העובד
+            UPDATE worker
+            SET role = 'Harvester'
+            WHERE worker_id = rec.worker_id;
+
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'שגיאה בעדכון לקציר % או עובד %: %', rec.harvest_id, rec.worker_id, SQLERRM;
+        END;
+    END LOOP;
+END;
+$$;
+  ```
 
 **הסבר על הפרוצדורה:**
+
+update_inventory_from_harvestsהפרוצדורה: 
+
+• קבלת פרמטר (cutoff_date DATE) – תאריך סף, לפיו ייבחרו רק קצירים שבוצעו בתאריך זה או לפניו.
+
+• לולאה על קצירים רלוונטיים – הפונקציה מבצעת לולאת FOR rec IN ... LOOP על רשומות מטבלת harvest שעומדות בשני תנאים:
+
+harvest_date קטן או שווה ל־cutoff_date.
+
+קיימת להן התאמה בטבלת perform (המשייכת את הקציר לעובד).
+
+• עדכון טבלת המלאי (inventory) – עבור כל קציר שנמצא, מתווספת כמות הקציר (quantity) לשדה inventory_quantity בטבלת inventory, לפי inventory_id המתאים.
+
+• עדכון טבלת העובדים (worker) – תפקידו של העובד שביצע את הקציר (worker_id) מתעדכן ל־'Harvester'.
+
+• טיפול בשגיאות – כל אחד מהעדכונים עטוף ב־BEGIN...EXCEPTION, כך שאם מתרחשת שגיאה (למשל inventory_id או worker_id לא קיימים), הפונקציה תדווח עליה באמצעות RAISE NOTICE אך תמשיך לפעול על שאר הרשומות.
 
 ## 3. Triggers:
 
