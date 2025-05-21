@@ -151,15 +151,12 @@ $$ LANGUAGE plpgsql;
 • **פרוצדורה ראשונה-**
 
  ```sql
-UPDATE Materials_ SET QuantityAvailable_ = 0 WHERE QuantityAvailable_ < 0;
--אפשר להריץ את זה ואז יאפס ל0 את הכל כי כביכול ביקשו כמות גדולה יותר ממה שיש.CREATE OR REPLACE PROCEDURE update_material_availability()
+CREATE OR REPLACE PROCEDURE update_material_availability()
 LANGUAGE plpgsql
 AS
 $$
 DECLARE
     rec RECORD;
-    available FLOAT;
-    to_deduct FLOAT;
 BEGIN
     FOR rec IN
         SELECT pm.MaterialID_, SUM(pm.UsageAmount) AS total_used
@@ -167,27 +164,13 @@ BEGIN
         GROUP BY pm.MaterialID_
     LOOP
         BEGIN
-            SELECT QuantityAvailable_ INTO available
-            FROM Materials_
+            UPDATE Materials_
+            SET QuantityAvailable_ = QuantityAvailable_ - rec.total_used
             WHERE MaterialID_ = rec.MaterialID_;
 
-            IF available IS NULL THEN
-                RAISE NOTICE 'Material % does not exist in Materials_', rec.MaterialID_;
-
-            ELSE
-                -- אם אין מספיק מלאי, נוריד רק את מה שיש
-                to_deduct := LEAST(available, rec.total_used);
-
-                UPDATE Materials_
-                SET QuantityAvailable_ = QuantityAvailable_ - to_deduct
-                WHERE MaterialID_ = rec.MaterialID_;
-
-                IF to_deduct < rec.total_used THEN
-                    RAISE NOTICE 'Material %: only %. Needed %, deducted only %',
-                        rec.MaterialID_, available, rec.total_used, to_deduct;
-                END IF;
+            IF NOT FOUND THEN
+                RAISE NOTICE 'No matching material found for MaterialID %', rec.MaterialID_;
             END IF;
-
         EXCEPTION
             WHEN OTHERS THEN
                 RAISE NOTICE 'Error updating material %: %', rec.MaterialID_, SQLERRM;
@@ -197,7 +180,7 @@ END;
 $$;
 
   ```
-עם הקוד הזה
+
 ---
 
 ### פרוצדורה – `update_material_availability`
@@ -214,6 +197,10 @@ $$;
 
 • **התנהגות במצב שליליות** – הפרוצדורה **אינה בולמת ירידת כמויות מתחת לאפס**, ולכן ייתכן שייווצרו ערכים שליליים בשדה `QuantityAvailable_`. דבר זה משקף מצב שבו נעשה שימוש בחומר מעבר למה שהיה זמין בפועל – מידע שיכול להעיד על צורך תפעולי חריג.
 
+
+**תמונה שממחישה את השינוי לפני ואחרי**
+
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc1.jpg?raw=true)  
 
 • **פרוצדורה שנייה-**
 
