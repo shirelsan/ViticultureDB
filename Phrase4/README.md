@@ -70,7 +70,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
   ```
-![func1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func%201.png?raw=true)  
-
 **תמונה שממחישה את השינוי:**
 ![func1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func1_result.jpg?raw=true)  
