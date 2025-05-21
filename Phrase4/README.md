@@ -296,6 +296,7 @@ cutoff_date='2025-05-01
 * טיפול בשגיאות (Exception):
 אם מתרחשת שגיאה כלשהי במהלך ביצוע העדכונים (למשל אם מזהה הציוד לא קיים בטבלה), הפונקציה תדווח על כך באמצעות RAISE NOTICE, ותמשיך לפעול. הדבר מונע קריסת התהליך כולו.
 
+
  ```
 CREATE OR REPLACE FUNCTION update_equipment_status()
 RETURNS TRIGGER AS $$
