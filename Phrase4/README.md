@@ -148,7 +148,7 @@ $$ LANGUAGE plpgsql;
 ## 2. Procedures:
 
 
-### **פרוצדורה ראשונה- update_material_availability**
+###**פרוצדורה ראשונה- update_material_availability**
 
 הפרוצדורה update_material_availability מעדכנת את כמויות המלאי של חומרים בטבלת Materials_ לפי השימוש בפועל שנעשה בהם בתהליכי ייצור, בהתאם לנתונים שבטבלת Process_Materials.
 
@@ -237,6 +237,12 @@ BEGIN
 END;
 $$;
   ```
+התאריך שבחרנו בהרצת הפרוצדורה:
+ ```
+cutoff_date='2025-05-01
+(CALL update_inventory_from_harvests('2025-05-01');
+)
+ ```
 
 **הסבר על הפרוצדורה:**
 
