@@ -2,20 +2,34 @@
 
 ## Introduction:
 
-
-
-
-
-
-
-
-
 ## פונקציות:
 
 
 • **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
 
-פה להכניס הסבר על הפונקציה--- 
+**הסבר על הפונקציה:**
+
+הפונקציה מקבלת פרמטר מספרי min_years שמייצג את מספר השנים למעבר מאז תחילת העבודה של העובדים.
+
+קורסור פנימי: הפונקציה מגדירה ופותחת קורסור שמביא את כל העובדים (worker) שתחילת עבודתם (Year_of_starting_work) קטנה או שווה ל-min_years.
+
+לולאת עיבוד: בתוך לולאת LOOP העובדים נקראים אחד אחד.
+
+עדכון תפקיד: לפי מספר השנים שכל עובד עבד:
+
+אם שנים ≤ 5 → תפקידו מעודכן ל-Junior
+
+אם שנים בין 6 ל-15 → תפקידו מעודכן ל-Mid-level
+
+אם שנים > 15 → תפקידו מעודכן ל-Senior
+
+טיפול בחריגות: אם קיים שגיאה בעת העדכון של עובד מסוים, הפונקציה תדפיס הודעת NOTICE עם מזהה העובד ופרטי השגיאה, ותמשיך לעבד את העובדים הבאים.
+
+סגירת הקורסור הפנימי: בסיום הלולאה הקורסור הפנימי נסגר.
+
+קורסור REFCURSOR: הפונקציה פותחת קורסור חדש עם שם המועבר כפרמטר ref ומחזירה אליו את רשימת העובדים שתחילת עבודתם קטנה או שווה ל-min_years יחד עם התפקידים המעודכנים.
+
+הפונקציה מחזירה את שם הקורסור ref אליו אפשר לגשת ולהוציא את רשימת העובדים המעודכנים באמצעות פקודת FETCH.
 
   ```sql
 CREATE OR REPLACE FUNCTION update_worker_roles_and_return_refcursor(min_years INT, INOUT ref refcursor)
@@ -56,3 +70,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
   ```
+![func1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func%201.png?raw=true)  
+
+**תמונה שממחישה את השינוי:**
+![func1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func1_result.jpg?raw=true)  
