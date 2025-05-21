@@ -226,7 +226,7 @@ harvest_date קטן או שווה ל־cutoff_date.
 • עדכון טבלת העובדים (worker) – תפקידו של העובד שביצע את הקציר (worker_id) מתעדכן ל־'Harvester'.
 
 • טיפול בשגיאות – כל אחד מהעדכונים עטוף ב־BEGIN...EXCEPTION, כך שאם מתרחשת שגיאה (למשל inventory_id או worker_id לא קיימים), הפונקציה תדווח עליה באמצעות RAISE NOTICE אך תמשיך לפעול על שאר הרשומות.
-  ```
+   ```sql
 CREATE OR REPLACE PROCEDURE update_inventory_from_harvests(cutoff_date DATE)
 LANGUAGE plpgsql
 AS
@@ -293,7 +293,7 @@ cutoff_date='2025-05-01
 
 
 
- ```
+ ```sql
 CREATE OR REPLACE FUNCTION update_equipment_status()
 RETURNS TRIGGER AS $$
 DECLARE
