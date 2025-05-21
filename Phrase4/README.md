@@ -2,7 +2,7 @@
 
 ## Introduction:
 
-## פונקציות:
+## functions:
 
 
 • **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
@@ -72,3 +72,70 @@ $$ LANGUAGE plpgsql;
   ```
 **תמונה שממחישה את השינוי:**
 ![func1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func1_result.jpg?raw=true)  
+
+
+• **פונקציה שנייה-maintenance_summary_update**
+
+**הסבר על הפונקציה:**
+1. הגדרת קורסור פנימי (cur_tasks):
+שליפת כל רשומות התחזוקה (task_id, task_type, m_date, worker_id) מהטבלה maintenace שבהן התאריך (m_date) קטן או שווה ל־cutoff_date.
+
+2. באמצעות לולאת LOOP, הפונקציה עוברת על כל רשומה בקורסור (cur_tasks) ומבצעת פעולה לפי סוג המשימה.
+
+3. התאמת תפקיד לעובד (התניית If)
+אם task_type = 'pruning' → תפקיד העובד מתעדכן ל־Pruner.
+
+אם task_type = 'harvesting' → תפקידו הופך ל־Harvester.
+
+אחרת → General Worker.
+
+4. טיפול בשגיאות - כל עדכון עטוף ב־BEGIN...EXCEPTION כדי שלא תיפסק הפונקציה בגלל שגיאה אחת. היא תמשיך ותדווח עם RAISE NOTICE.
+
+5. שלב הסיום – פתיחת קורסור חיצוני (ref) - הפונקציה פותחת קורסור בשם ref ומחזירה דרכו את רשימת כל המשימות שבוצעו עד cutoff_date.
+
+  ```sql
+CREATE OR REPLACE FUNCTION maintenance_summary_update(cutoff_date DATE, INOUT ref refcursor)
+RETURNS refcursor AS
+$$
+DECLARE
+    rec_task RECORD;
+    cur_tasks CURSOR FOR
+        SELECT task_id, task_type, m_date, worker_id
+        FROM maintenace
+        WHERE m_date <= cutoff_date;
+BEGIN
+    OPEN cur_tasks;
+
+    LOOP
+        FETCH cur_tasks INTO rec_task;
+        EXIT WHEN NOT FOUND;
+        BEGIN
+            -- עדכון תפקיד העובד בהתאם לסוג המשימה
+            IF rec_task.task_type = 'pruning' THEN
+                UPDATE worker
+                SET role = 'Pruner'
+                WHERE worker_id = rec_task.worker_id;
+            ELSIF rec_task.task_type = 'harvesting' THEN
+                UPDATE worker
+                SET role = 'Harvester'
+                WHERE worker_id = rec_task.worker_id;
+            ELSE
+                UPDATE worker
+                SET role = 'General Worker'
+                WHERE worker_id = rec_task.worker_id;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Error updating worker %: %', rec_task.worker_id, SQLERRM;
+        END;
+    END LOOP;
+
+    CLOSE cur_tasks;
+
+    OPEN ref FOR
+        SELECT task_id, task_type, m_date, worker_id
+        FROM maintenace
+        WHERE m_date <= cutoff_date;
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
+  ```
