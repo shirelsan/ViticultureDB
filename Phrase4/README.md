@@ -11,7 +11,7 @@
 
 הפונקציה מקבלת פרמטר מספרי min_years שמייצג את מספר השנים למעבר מאז תחילת העבודה של העובדים.
 
-קורסור פנימי: הפונקציה מגדירה ופותחת קורסור שמביא את כל העובדים (worker) שתחילת עבודתם (Year_of_starting_work) קטנה או שווה ל-min_years.
+קורסור פנימי: הפונקציה מגדירה ופותחת קורסור שמביא את כל העובדים (worker) שתחילת עבודתם (Year_of_starting_work) קטנה או שווה ל-min_years h.
 
 לולאת עיבוד: בתוך לולאת LOOP העובדים נקראים אחד אחד.
 
@@ -83,11 +83,11 @@ $$ LANGUAGE plpgsql;
 2. באמצעות לולאת LOOP, הפונקציה עוברת על כל רשומה בקורסור (cur_tasks) ומבצעת פעולה לפי סוג המשימה.
 
 3. התאמת תפקיד לעובד (התניית If)
-אם task_type = 'pruning' → תפקיד העובד מתעדכן ל־Pruner.
+אם task_type = 'pruning' -> תפקיד העובד מתעדכן ל־Pruner.
 
-אם task_type = 'harvesting' → תפקידו הופך ל־Harvester.
+אם task_type = 'harvesting' -> תפקידו הופך ל־Harvester.
 
-אחרת → General Worker.
+אחרת -> General Worker.
 
 4. טיפול בשגיאות - כל עדכון עטוף ב־BEGIN...EXCEPTION כדי שלא תיפסק הפונקציה בגלל שגיאה אחת. היא תמשיך ותדווח עם RAISE NOTICE.
 
@@ -139,3 +139,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
   ```
+
+**תמונות שממחישה את השינוי:**
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func2_1.jpg?raw=true)  
+
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func2_2.jpg?raw=true)  
+
