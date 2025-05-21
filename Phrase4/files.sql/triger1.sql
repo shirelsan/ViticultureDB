@@ -41,3 +41,8 @@ INSERT INTO Process_Equipment (EquipmentID_, ProcessID_) VALUES (100, 101);
 INSERT INTO Process_Equipment (EquipmentID_, ProcessID_) VALUES (100, 100);
 INSERT INTO Process_Equipment (EquipmentID_, ProcessID_) VALUES (100, 397);
 INSERT INTO Process_Equipment (EquipmentID_, ProcessID_) VALUES (100, 398);
+
+SELECT * FROM Process_Equipment WHERE EquipmentID_ = 102;
+SELECT * FROM Process_Equipment WHERE EquipmentID_ = 101;
+
+SELECT * FROM  public.ProductionEquipment_;
