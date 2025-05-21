@@ -147,9 +147,72 @@ $$ LANGUAGE plpgsql;
 
 ## 2. Procedures:
 
+
 • **פרוצדורה ראשונה-**
 
+ ```sql
+UPDATE Materials_ SET QuantityAvailable_ = 0 WHERE QuantityAvailable_ < 0;
+-אפשר להריץ את זה ואז יאפס ל0 את הכל כי כביכול ביקשו כמות גדולה יותר ממה שיש.CREATE OR REPLACE PROCEDURE update_material_availability()
+LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    rec RECORD;
+    available FLOAT;
+    to_deduct FLOAT;
+BEGIN
+    FOR rec IN
+        SELECT pm.MaterialID_, SUM(pm.UsageAmount) AS total_used
+        FROM Process_Materials pm
+        GROUP BY pm.MaterialID_
+    LOOP
+        BEGIN
+            SELECT QuantityAvailable_ INTO available
+            FROM Materials_
+            WHERE MaterialID_ = rec.MaterialID_;
+
+            IF available IS NULL THEN
+                RAISE NOTICE 'Material % does not exist in Materials_', rec.MaterialID_;
+
+            ELSE
+                -- אם אין מספיק מלאי, נוריד רק את מה שיש
+                to_deduct := LEAST(available, rec.total_used);
+
+                UPDATE Materials_
+                SET QuantityAvailable_ = QuantityAvailable_ - to_deduct
+                WHERE MaterialID_ = rec.MaterialID_;
+
+                IF to_deduct < rec.total_used THEN
+                    RAISE NOTICE 'Material %: only %. Needed %, deducted only %',
+                        rec.MaterialID_, available, rec.total_used, to_deduct;
+                END IF;
+            END IF;
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE NOTICE 'Error updating material %: %', rec.MaterialID_, SQLERRM;
+        END;
+    END LOOP;
+END;
+$$;
+
+  ```
+עם הקוד הזה
+---
+
+### פרוצדורה – `update_material_availability`
+
 **הסבר על הפרוצדורה:**
+
+• **חישוב שימושים בפועל** – הפרוצדורה סורקת את טבלת `Process_Materials` ומבצעת סיכום (`SUM`) של כל כמויות השימוש (`UsageAmount`) שבוצעו בפועל, מקובצות לפי מזהה החומר (`MaterialID_`).
+
+• **לולאת LOOP לעדכון כמויות** – עבור כל חומר שנמצא, מתבצעת לולאה אשר דרכה מתבצע עדכון בטבלת `Materials_`, כך שהשדה `QuantityAvailable_` מופחת בהתאם לסך כל הכמות שנעשה בה שימוש בפועל.
+
+• **התראה במקרה של חומר חסר** – אם לא נמצא חומר תואם לעדכון בטבלת `Materials_`, מוצגת הודעת אזהרה באמצעות `RAISE NOTICE`.
+
+• **טיפול בשגיאות** – כל פעולה עטופה בבלוק `BEGIN...EXCEPTION`, כך שאם מתרחשת שגיאה (למשל מזהה חומר לא קיים), היא תיתפס ותדווח מבלי להפסיק את הריצה של הפרוצדורה.
+
+• **התנהגות במצב שליליות** – הפרוצדורה **אינה בולמת ירידת כמויות מתחת לאפס**, ולכן ייתכן שייווצרו ערכים שליליים בשדה `QuantityAvailable_`. דבר זה משקף מצב שבו נעשה שימוש בחומר מעבר למה שהיה זמין בפועל – מידע שיכול להעיד על צורך תפעולי חריג.
 
 
 • **פרוצדורה שנייה-**
