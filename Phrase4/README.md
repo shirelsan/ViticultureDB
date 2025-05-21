@@ -77,20 +77,21 @@ $$ LANGUAGE plpgsql;
 • **פונקציה שנייה-maintenance_summary_update**
 
 **הסבר על הפונקציה:**
-1. הגדרת קורסור פנימי (cur_tasks): שליפת כל רשומות התחזוקה (task_id, task_type, m_date, worker_id) מהטבלה maintenace שבהן התאריך (m_date) קטן או שווה ל־cutoff_date.
 
-2. באמצעות לולאת LOOP, הפונקציה עוברת על כל רשומה בקורסור (cur_tasks) ומבצעת פעולה לפי סוג המשימה.
+• הגדרת קורסור פנימי (cur_tasks): שליפת כל רשומות התחזוקה (task_id, task_type, m_date, worker_id) מהטבלה maintenace שבהן התאריך (m_date) קטן או שווה ל־cutoff_date.
 
-3. התאמת תפקיד לעובד (התניית If)
+• באמצעות לולאת LOOP, הפונקציה עוברת על כל רשומה בקורסור (cur_tasks) ומבצעת פעולה לפי סוג המשימה.
+
+• התאמת תפקיד לעובד (התניית If)
 אם task_type = 'pruning' -> תפקיד העובד מתעדכן ל־Pruner.
 
 אם task_type = 'harvesting' -> תפקידו הופך ל־Harvester.
 
 אחרת -> General Worker.
 
-4. טיפול בשגיאות - כל עדכון עטוף ב־BEGIN...EXCEPTION כדי שלא תיפסק הפונקציה בגלל שגיאה אחת. היא תמשיך ותדווח עם RAISE NOTICE.
+• טיפול בשגיאות - כל עדכון עטוף ב־BEGIN...EXCEPTION כדי שלא תיפסק הפונקציה בגלל שגיאה אחת. היא תמשיך ותדווח עם RAISE NOTICE.
 
-5. שלב הסיום – פתיחת קורסור חיצוני (ref) - הפונקציה פותחת קורסור בשם ref ומחזירה דרכו את רשימת כל המשימות שבוצעו עד cutoff_date.
+• שלב הסיום – פתיחת קורסור חיצוני (ref) - הפונקציה פותחת קורסור בשם ref ומחזירה דרכו את רשימת כל המשימות שבוצעו עד cutoff_date.
 
   ```sql
 CREATE OR REPLACE FUNCTION maintenance_summary_update(cutoff_date DATE, INOUT ref refcursor)
