@@ -1,4 +1,6 @@
-# Phase 4: תכנות:
+# Phase 4: Programming:
+
+## Introduction:
 
 
 
@@ -8,8 +10,12 @@
 
 
 
+## פונקציות:
 
 
+• **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
+
+פה להכניס הסבר על הפונקציה--- 
 
   ```sql
 CREATE OR REPLACE FUNCTION update_worker_roles_and_return_refcursor(min_years INT, INOUT ref refcursor)
