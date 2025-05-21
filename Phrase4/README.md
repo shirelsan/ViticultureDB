@@ -77,8 +77,7 @@ $$ LANGUAGE plpgsql;
 • **פונקציה שנייה-maintenance_summary_update**
 
 **הסבר על הפונקציה:**
-1. הגדרת קורסור פנימי (cur_tasks):
-שליפת כל רשומות התחזוקה (task_id, task_type, m_date, worker_id) מהטבלה maintenace שבהן התאריך (m_date) קטן או שווה ל־cutoff_date.
+1. הגדרת קורסור פנימי (cur_tasks): שליפת כל רשומות התחזוקה (task_id, task_type, m_date, worker_id) מהטבלה maintenace שבהן התאריך (m_date) קטן או שווה ל־cutoff_date.
 
 2. באמצעות לולאת LOOP, הפונקציה עוברת על כל רשומה בקורסור (cur_tasks) ומבצעת פעולה לפי סוג המשימה.
 
