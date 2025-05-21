@@ -274,9 +274,70 @@ cutoff_date='2025-05-01
 
 ## 3. Triggers:
 
-• **טריגר מס' 1-**
+### **טריגר מס' 1- update_equipment_status**
 
 **הסבר על הטריגר:**
+
+הטריגר update_equipment_status אחראי לעדכן את מצב הציוד (status_) בהתאם למידת השימוש בו בתהליכי ייצור.
+
+* מתי הטריגר מופעל:
+הטריגר מוגדר לפעול אחרי כל הכנסת שורה חדשה (AFTER INSERT) לטבלה Process_Equipment, שהיא טבלה המקשרת בין תהליך ייצור לציוד שנעשה בו שימוש.
+
+* שליפת מספר הפעמים בהן נעשה שימוש בציוד:
+הפונקציה סופרת כמה פעמים מופיע אותו מזהה ציוד (EquipmentID_) בטבלת Process_Equipment. המספר הזה נשמר במשתנה usage_count.
+
+* תנאי הסתעפות (IF):
+אם מספר השימושים בציוד שווה או גדול מ־3, הפונקציה מעדכנת את שדה status_ בטבלת ProductionEquipment_ ל־Overloaded (ציוד עמוס).
+אחרת, סטטוס הציוד מתעדכן ל־InUse (בשימוש).
+
+* עדכון טבלת הציוד (ProductionEquipment_):
+העדכון מתבצע לפי מזהה הציוד שהוזן בטבלה Process_Equipment, בעזרת שאילתת UPDATE.
+
+* טיפול בשגיאות (Exception):
+אם מתרחשת שגיאה כלשהי במהלך ביצוע העדכונים (למשל אם מזהה הציוד לא קיים בטבלה), הפונקציה תדווח על כך באמצעות RAISE NOTICE, ותמשיך לפעול. הדבר מונע קריסת התהליך כולו.
+
+ ```
+CREATE OR REPLACE FUNCTION update_equipment_status()
+RETURNS TRIGGER AS $$
+DECLARE
+    usage_count INT;
+BEGIN
+    SELECT COUNT(*) INTO usage_count
+    FROM Process_Equipment
+    WHERE EquipmentID_ = NEW.EquipmentID_;
+
+    IF usage_count >= 3 THEN
+        UPDATE ProductionEquipment_
+        SET status_ = 'Overloaded'
+        WHERE EquipmentID_ = NEW.EquipmentID_;
+    ELSE
+        UPDATE ProductionEquipment_
+        SET status_ = 'InUse'
+        WHERE EquipmentID_ = NEW.EquipmentID_;
+    END IF;
+
+    RETURN NEW;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'שגיאה בעדכון סטטוס לציוד %: %', NEW.EquipmentID_, SQLERRM;
+        RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_update_equipment_status ON Process_Equipment;
+
+CREATE TRIGGER trg_update_equipment_status
+AFTER INSERT ON Process_Equipment
+FOR EACH ROW
+EXECUTE FUNCTION update_equipment_status();
+ ```
+**תמונות של הטבלאות השייכות לטריגר לאחר הפעלתו:**
+
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/triger1.jpg?raw=true)  
+
+
+
+
 
 • **טריגר מס' 2-**
 
