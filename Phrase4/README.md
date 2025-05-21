@@ -5,7 +5,7 @@
 ## 1. Functions:
 
 
-• **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
+### **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
 
 **הסבר על הפונקציה:**
 
@@ -74,7 +74,7 @@ $$ LANGUAGE plpgsql;
 ![func1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func1_result.jpg?raw=true)  
 
 
-• **פונקציה שנייה-maintenance_summary_update**
+### **פונקציה שנייה-maintenance_summary_update**
 
 **הסבר על הפונקציה:**
 
@@ -148,7 +148,7 @@ $$ LANGUAGE plpgsql;
 ## 2. Procedures:
 
 
-• **פרוצדורה ראשונה-**
+### **פרוצדורה ראשונה- update_material_availability**
 
  ```sql
 CREATE OR REPLACE PROCEDURE update_material_availability()
@@ -183,7 +183,7 @@ $$;
 
 ---
 
-### **פרוצדורה – update_material_availability**
+
 
 **הסבר על הפרוצדורה:**
 
@@ -256,7 +256,7 @@ harvest_date קטן או שווה ל־cutoff_date.
 
 **תמונה שממחישה את השינוי לפני ואחרי**
 
-![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc1.jpg?raw=true)  
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc2.jpg?raw=true)  
 
 
 ## 3. Triggers:
