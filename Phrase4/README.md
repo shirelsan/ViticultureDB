@@ -333,7 +333,10 @@ EXECUTE FUNCTION update_equipment_status();
  ```
 **תמונות של הטבלאות השייכות לטריגר לאחר הפעלתו:**
 
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/triger1.1.jpg?raw=true)  
+
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/triger1.jpg?raw=true)  
+
 
 
 
