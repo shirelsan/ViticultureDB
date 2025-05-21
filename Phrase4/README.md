@@ -150,6 +150,8 @@ $$ LANGUAGE plpgsql;
 
 ### **פרוצדורה ראשונה- update_material_availability**
 
+הפרוצדורה update_material_availability מעדכנת את כמויות המלאי של חומרים בטבלת Materials_ לפי השימוש בפועל שנעשה בהם בתהליכי ייצור, בהתאם לנתונים שבטבלת Process_Materials.
+
  ```sql
 CREATE OR REPLACE PROCEDURE update_material_availability()
 LANGUAGE plpgsql
@@ -238,7 +240,9 @@ $$;
 
 **הסבר על הפרוצדורה:**
 
-update_inventory_from_harvestsהפרוצדורה: 
+בוודאי! הנה הסבר בשורה אחת:
+
+הפרוצדורה update_inventory_from_harvests מעדכנת את כמות המלאי לפי נתוני קציר שנערך עד תאריך מסוים, ומגדירה את תפקיד העובד שביצע את הקציר כ־Harvester.
 
 • קבלת פרמטר (cutoff_date DATE) – תאריך סף, לפיו ייבחרו רק קצירים שבוצעו בתאריך זה או לפניו.
 
