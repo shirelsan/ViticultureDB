@@ -29,7 +29,7 @@
 
 מטרת שלב זה היא לשפר את אוטומציית תהליכי העבודה, לצמצם שגיאות ידניות ולאפשר קבלת החלטות מבוססות נתונים בצורה אמינה, יעילה וידידותית למשתמש.
 
-## 1. Functions:
+## Functions:
 
 
 
@@ -180,7 +180,7 @@ $$ LANGUAGE plpgsql;
 
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/func2_2.jpg?raw=true)  
 
-## 2. Procedures:
+## Procedures:
 
 
 ### **פרוצדורה ראשונה- update_material_availability**
@@ -302,7 +302,7 @@ cutoff_date='2025-05-01
 
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc2.jpg?raw=true)  
 
-## 3. Triggers:
+## Triggers:
 
 ### **טריגר מס' 1- update_equipment_status**
 
@@ -446,7 +446,7 @@ VALUES (10000, '2027-05-01', 80, 691);
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/TRIGER2-EX.png?raw=true)  
 
 
-## 4. Main Programs:
+## Main Programs:
 
 • **תוכנית ראשית מס' 1 -**
 
