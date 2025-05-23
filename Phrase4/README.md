@@ -348,6 +348,7 @@ EXECUTE FUNCTION update_equipment_status();
 
  ```sql
 -- שלב 1: הפונקציה
+
 CREATE OR REPLACE FUNCTION update_vine_maturity()
 RETURNS TRIGGER AS
 $$
@@ -357,6 +358,7 @@ DECLARE
     age_in_years INTEGER;
 BEGIN
     -- נמצא את הגפן שמתאים ל־inventory_id דרך הקשרים בטבלאות
+
     SELECT v.vine_id, v.v_date
     INTO vine_id_val, vine_date
     FROM vineyard y
@@ -365,9 +367,11 @@ BEGIN
     WHERE h.inventory_id = NEW.inventory_id;
 
     -- נחשב כמה שנים עברו בין תאריך הגפן לתאריך הקטיף החדש
+
     age_in_years := DATE_PART('year', NEW.harvest_date) - DATE_PART('year', vine_date);
 
     -- עדכון רמת הבשלות
+
     IF age_in_years < 1 THEN
         UPDATE vine SET maturity_level = 'unripe' WHERE vine_id = vine_id_val;
     ELSIF age_in_years BETWEEN 1 AND 3 THEN
@@ -381,6 +385,7 @@ END;
 $$
 LANGUAGE plpgsql;
 --שלב 2 תנאי הטרייגר:
+
 CREATE TRIGGER trg_update_vine_maturity
 AFTER INSERT ON harvest
 FOR EACH ROW
