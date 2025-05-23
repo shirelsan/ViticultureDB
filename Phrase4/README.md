@@ -347,8 +347,6 @@ EXECUTE FUNCTION update_equipment_status();
 
 
  ```sql
--- שלב 1: הפונקציה
-
 CREATE OR REPLACE FUNCTION update_vine_maturity()
 RETURNS TRIGGER AS
 $$
