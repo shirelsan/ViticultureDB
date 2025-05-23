@@ -1,0 +1,8841 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 17.4 (Debian 17.4-1.pgdg120+2)
+-- Dumped by pg_dump version 17.4
+
+-- Started on 2025-05-23 12:47:34 UTC
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 251 (class 1255 OID 40969)
+-- Name: maintenance_summary_update(date, refcursor); Type: FUNCTION; Schema: public; Owner: myuser
+--
+
+CREATE FUNCTION public.maintenance_summary_update(cutoff_date date, INOUT ref refcursor) RETURNS refcursor
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    rec_task RECORD;
+    cur_tasks CURSOR FOR
+        SELECT task_id, task_type, m_date, worker_id
+        FROM maintenace
+        WHERE m_date <= cutoff_date;
+BEGIN
+    OPEN cur_tasks;
+
+    LOOP
+        FETCH cur_tasks INTO rec_task;
+        EXIT WHEN NOT FOUND;
+
+        BEGIN
+            -- עדכון תפקיד העובד בהתאם לסוג המשימה
+            IF rec_task.task_type = 'pruning' THEN
+                UPDATE worker
+                SET role = 'Pruner'
+                WHERE worker_id = rec_task.worker_id;
+            ELSIF rec_task.task_type = 'harvesting' THEN
+                UPDATE worker
+                SET role = 'Harvester'
+                WHERE worker_id = rec_task.worker_id;
+            ELSE
+                UPDATE worker
+                SET role = 'General Worker'
+                WHERE worker_id = rec_task.worker_id;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Error updating worker %: %', rec_task.worker_id, SQLERRM;
+        END;
+    END LOOP;
+
+    CLOSE cur_tasks;
+
+    OPEN ref FOR
+        SELECT task_id, task_type, m_date, worker_id
+        FROM maintenace
+        WHERE m_date <= cutoff_date;
+
+    RETURN;
+END;
+$$;
+
+
+ALTER FUNCTION public.maintenance_summary_update(cutoff_date date, INOUT ref refcursor) OWNER TO myuser;
+
+--
+-- TOC entry 238 (class 1255 OID 40973)
+-- Name: update_equipment_status(); Type: FUNCTION; Schema: public; Owner: myuser
+--
+
+CREATE FUNCTION public.update_equipment_status() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    usage_count INT;
+BEGIN
+    SELECT COUNT(*) INTO usage_count
+    FROM Process_Equipment
+    WHERE EquipmentID_ = NEW.EquipmentID_;
+
+    IF usage_count >= 3 THEN
+        UPDATE ProductionEquipment_
+        SET status_ = 'Overloaded'
+        WHERE EquipmentID_ = NEW.EquipmentID_;
+    ELSE
+        UPDATE ProductionEquipment_
+        SET status_ = 'InUse'
+        WHERE EquipmentID_ = NEW.EquipmentID_;
+    END IF;
+
+    RETURN NEW;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'שגיאה בעדכון סטטוס לציוד %: %', NEW.EquipmentID_, SQLERRM;
+        RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.update_equipment_status() OWNER TO myuser;
+
+--
+-- TOC entry 253 (class 1255 OID 40972)
+-- Name: update_inventory_from_harvests(date); Type: PROCEDURE; Schema: public; Owner: myuser
+--
+
+CREATE PROCEDURE public.update_inventory_from_harvests(IN cutoff_date date)
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    rec RECORD;
+BEGIN
+    FOR rec IN
+        SELECT h.harvest_id, h.quantity, h.inventory_id, p.worker_id
+        FROM harvest h
+        JOIN perform p ON h.harvest_id = p.harvest_id
+        WHERE h.harvest_date <= cutoff_date
+    LOOP
+        BEGIN
+            -- עדכון הכמות במלאי לפי כמות הקציר
+            UPDATE inventory
+            SET inventory_quantity = inventory_quantity + rec.quantity
+            WHERE inventory_id = rec.inventory_id;
+
+            -- עדכון תפקיד העובד
+            UPDATE worker
+            SET role = 'Harvester'
+            WHERE worker_id = rec.worker_id;
+
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'שגיאה בעדכון לקציר % או עובד %: %', rec.harvest_id, rec.worker_id, SQLERRM;
+        END;
+    END LOOP;
+END;
+$$;
+
+
+ALTER PROCEDURE public.update_inventory_from_harvests(IN cutoff_date date) OWNER TO myuser;
+
+--
+-- TOC entry 252 (class 1255 OID 40970)
+-- Name: update_material_availability(); Type: PROCEDURE; Schema: public; Owner: myuser
+--
+
+CREATE PROCEDURE public.update_material_availability()
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    rec RECORD;
+BEGIN
+    FOR rec IN
+        SELECT pm.MaterialID_, SUM(pm.UsageAmount) AS total_used
+        FROM Process_Materials pm
+        GROUP BY pm.MaterialID_
+    LOOP
+        BEGIN
+            UPDATE Materials_
+            SET QuantityAvailable_ = QuantityAvailable_ - rec.total_used
+            WHERE MaterialID_ = rec.MaterialID_;
+
+            IF NOT FOUND THEN
+                RAISE NOTICE 'No matching material found for MaterialID %', rec.MaterialID_;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                RAISE NOTICE 'Error updating material %: %', rec.MaterialID_, SQLERRM;
+        END;
+    END LOOP;
+END;
+$$;
+
+
+ALTER PROCEDURE public.update_material_availability() OWNER TO myuser;
+
+--
+-- TOC entry 254 (class 1255 OID 40976)
+-- Name: update_vine_maturity(); Type: FUNCTION; Schema: public; Owner: myuser
+--
+
+CREATE FUNCTION public.update_vine_maturity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    vine_date DATE;
+    vine_id_val INTEGER;
+    age_in_years INTEGER;
+BEGIN
+    -- נשלוף את vine_id לפי inventory_id מהטבלה vineyard
+    SELECT v.vine_id, vi.v_date
+    INTO vine_id_val, vine_date
+    FROM vineyard y
+    JOIN vine v ON y.vine_id = v.vine_id
+    JOIN inventory i ON y.harvest_id = NEW.harvest_id AND i.inventory_id = NEW.inventory_id
+    JOIN harvest h ON h.harvest_id = y.harvest_id
+    WHERE i.inventory_id = NEW.inventory_id;
+
+    -- נחשב כמה שנים עברו בין תאריך הגפן לקטיף
+    age_in_years := DATE_PART('year', NEW.harvest_date) - DATE_PART('year', vine_date);
+
+    -- נעדכן את רמת הבשלות
+    IF age_in_years < 1 THEN
+        UPDATE vine SET maturity_level = 'unripe' WHERE vine_id = vine_id_val;
+    ELSIF age_in_years BETWEEN 1 AND 3 THEN
+        UPDATE vine SET maturity_level = 'ripe' WHERE vine_id = vine_id_val;
+    ELSE
+        UPDATE vine SET maturity_level = 'rotten' WHERE vine_id = vine_id_val;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.update_vine_maturity() OWNER TO myuser;
+
+--
+-- TOC entry 250 (class 1255 OID 40968)
+-- Name: update_worker_roles_and_return_refcursor(integer, refcursor); Type: FUNCTION; Schema: public; Owner: myuser
+--
+
+CREATE FUNCTION public.update_worker_roles_and_return_refcursor(min_years integer, INOUT ref refcursor) RETURNS refcursor
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    rec_worker RECORD;
+    cur_workers CURSOR FOR
+        SELECT worker_id, w_name, Year_of_starting_work, role
+        FROM worker
+        WHERE Year_of_starting_work <= min_years;
+BEGIN
+    OPEN cur_workers;
+    LOOP
+        FETCH cur_workers INTO rec_worker;
+        EXIT WHEN NOT FOUND;
+
+        BEGIN
+            IF rec_worker.Year_of_starting_work <= 5 THEN
+                UPDATE worker SET role = 'Junior' WHERE worker_id = rec_worker.worker_id;
+            ELSIF rec_worker.Year_of_starting_work > 5 AND rec_worker.Year_of_starting_work <= 15 THEN
+                UPDATE worker SET role = 'Mid-level' WHERE worker_id = rec_worker.worker_id;
+            ELSE
+                UPDATE worker SET role = 'Senior' WHERE worker_id = rec_worker.worker_id;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE NOTICE 'Error updating worker %: %', rec_worker.worker_id, SQLERRM;
+        END;
+    END LOOP;
+    CLOSE cur_workers;
+
+    OPEN ref FOR
+        SELECT worker_id, w_name, Year_of_starting_work, role
+        FROM worker
+        WHERE Year_of_starting_work <= min_years;
+
+    RETURN;  -- בלי ערך כאן!
+END;
+$$;
+
+
+ALTER FUNCTION public.update_worker_roles_and_return_refcursor(min_years integer, INOUT ref refcursor) OWNER TO myuser;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 227 (class 1259 OID 32870)
+-- Name: containers_; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.containers_ (
+    containerid_ integer NOT NULL,
+    type_ integer,
+    capacityl_ double precision
+);
+
+
+ALTER TABLE public.containers_ OWNER TO myuser;
+
+--
+-- TOC entry 232 (class 1259 OID 32891)
+-- Name: processcontainers; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.processcontainers (
+    containerid_ integer NOT NULL,
+    processid_ integer NOT NULL
+);
+
+
+ALTER TABLE public.processcontainers OWNER TO myuser;
+
+--
+-- TOC entry 234 (class 1259 OID 32897)
+-- Name: productionprocess_; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.productionprocess_ (
+    processid_ integer NOT NULL,
+    type_ integer,
+    startdate_ date,
+    enddate_ date,
+    seqnumber integer,
+    grapeid integer,
+    employeeid integer,
+    batchnumber_ integer
+);
+
+
+ALTER TABLE public.productionprocess_ OWNER TO myuser;
+
+--
+-- TOC entry 237 (class 1259 OID 40961)
+-- Name: container_process_info; Type: VIEW; Schema: public; Owner: myuser
+--
+
+CREATE VIEW public.container_process_info AS
+ SELECT pc.containerid_,
+    c.type_ AS containertype,
+    c.capacityl_,
+    pp.processid_,
+    pp.type_ AS processtype,
+    pp.startdate_,
+    pp.enddate_,
+    pp.batchnumber_
+   FROM ((public.processcontainers pc
+     JOIN public.containers_ c ON ((pc.containerid_ = c.containerid_)))
+     JOIN public.productionprocess_ pp ON ((pc.processid_ = pp.processid_)));
+
+
+ALTER VIEW public.container_process_info OWNER TO myuser;
+
+--
+-- TOC entry 228 (class 1259 OID 32876)
+-- Name: finalproduct_; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.finalproduct_ (
+    quntityofbottle double precision,
+    batchnumber_ integer NOT NULL,
+    winetype_ character varying(10),
+    bottlingdate_ date,
+    numbottls integer NOT NULL
+);
+
+
+ALTER TABLE public.finalproduct_ OWNER TO myuser;
+
+--
+-- TOC entry 217 (class 1259 OID 16389)
+-- Name: grape_variety; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.grape_variety (
+    g_name character varying,
+    color character varying,
+    grape_variety_id integer NOT NULL,
+    vine_id integer,
+    CONSTRAINT check_color CHECK (((color)::text = ANY ((ARRAY['Red'::character varying, 'White'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.grape_variety OWNER TO myuser;
+
+--
+-- TOC entry 218 (class 1259 OID 16394)
+-- Name: harvest; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.harvest (
+    harvest_id integer NOT NULL,
+    harvest_date date NOT NULL,
+    quantity integer,
+    inventory_id integer
+);
+
+
+ALTER TABLE public.harvest OWNER TO myuser;
+
+--
+-- TOC entry 219 (class 1259 OID 16397)
+-- Name: inventory; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.inventory (
+    expiration_date date,
+    inventory_id integer NOT NULL,
+    inventory_quantity integer,
+    date_of_receipt date
+);
+
+
+ALTER TABLE public.inventory OWNER TO myuser;
+
+--
+-- TOC entry 235 (class 1259 OID 32975)
+-- Name: inventory_process; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.inventory_process (
+    inventory_id integer NOT NULL,
+    processid integer NOT NULL
+);
+
+
+ALTER TABLE public.inventory_process OWNER TO myuser;
+
+--
+-- TOC entry 220 (class 1259 OID 16400)
+-- Name: maintenace; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.maintenace (
+    task_id integer NOT NULL,
+    task_type character varying,
+    m_date date,
+    worker_id integer
+);
+
+
+ALTER TABLE public.maintenace OWNER TO myuser;
+
+--
+-- TOC entry 222 (class 1259 OID 16408)
+-- Name: receive; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.receive (
+    task_id integer NOT NULL,
+    vineyard_id integer NOT NULL
+);
+
+
+ALTER TABLE public.receive OWNER TO myuser;
+
+--
+-- TOC entry 224 (class 1259 OID 16416)
+-- Name: vineyard; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.vineyard (
+    vineyard_id integer NOT NULL,
+    location character varying,
+    area_size integer,
+    soil_type character varying,
+    vine_id integer,
+    harvest_id integer
+);
+
+
+ALTER TABLE public.vineyard OWNER TO myuser;
+
+--
+-- TOC entry 225 (class 1259 OID 16421)
+-- Name: worker; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.worker (
+    worker_id integer NOT NULL,
+    w_name character varying,
+    year_of_starting_work integer,
+    role character varying
+);
+
+
+ALTER TABLE public.worker OWNER TO myuser;
+
+--
+-- TOC entry 226 (class 1259 OID 32861)
+-- Name: maintenance_task_info; Type: VIEW; Schema: public; Owner: myuser
+--
+
+CREATE VIEW public.maintenance_task_info AS
+ SELECT m.task_id,
+    m.task_type,
+    m.m_date,
+    w.w_name AS worker_name,
+    v.location AS vineyard_location,
+    v.soil_type
+   FROM (((public.maintenace m
+     JOIN public.worker w ON ((m.worker_id = w.worker_id)))
+     JOIN public.receive r ON ((m.task_id = r.task_id)))
+     JOIN public.vineyard v ON ((r.vineyard_id = v.vineyard_id)));
+
+
+ALTER VIEW public.maintenance_task_info OWNER TO myuser;
+
+--
+-- TOC entry 229 (class 1259 OID 32882)
+-- Name: materials_; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.materials_ (
+    materialid_ integer NOT NULL,
+    name_ character varying(10),
+    supplierid_ integer,
+    quantityavailable_ double precision
+);
+
+
+ALTER TABLE public.materials_ OWNER TO myuser;
+
+--
+-- TOC entry 221 (class 1259 OID 16405)
+-- Name: perform; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.perform (
+    worker_id integer NOT NULL,
+    harvest_id integer NOT NULL
+);
+
+
+ALTER TABLE public.perform OWNER TO myuser;
+
+--
+-- TOC entry 230 (class 1259 OID 32885)
+-- Name: process_equipment; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.process_equipment (
+    equipmentid_ integer NOT NULL,
+    processid_ integer NOT NULL
+);
+
+
+ALTER TABLE public.process_equipment OWNER TO myuser;
+
+--
+-- TOC entry 231 (class 1259 OID 32888)
+-- Name: process_materials; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.process_materials (
+    usageamount integer,
+    processid_ integer NOT NULL,
+    materialid_ integer NOT NULL
+);
+
+
+ALTER TABLE public.process_materials OWNER TO myuser;
+
+--
+-- TOC entry 233 (class 1259 OID 32894)
+-- Name: productionequipment_; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.productionequipment_ (
+    equipmentid_ integer NOT NULL,
+    type_ character(10),
+    status_ character varying(10)
+);
+
+
+ALTER TABLE public.productionequipment_ OWNER TO myuser;
+
+--
+-- TOC entry 223 (class 1259 OID 16411)
+-- Name: vine; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.vine (
+    vine_id integer NOT NULL,
+    v_date date,
+    maturity_level character varying DEFAULT 'unripe'::character varying
+);
+
+
+ALTER TABLE public.vine OWNER TO myuser;
+
+--
+-- TOC entry 236 (class 1259 OID 33010)
+-- Name: worker_performs_process; Type: TABLE; Schema: public; Owner: myuser
+--
+
+CREATE TABLE public.worker_performs_process (
+    worker_id integer NOT NULL,
+    processid_ integer NOT NULL
+);
+
+
+ALTER TABLE public.worker_performs_process OWNER TO myuser;
+
+--
+-- TOC entry 3513 (class 0 OID 32870)
+-- Dependencies: 227
+-- Data for Name: containers_; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.containers_ (containerid_, type_, capacityl_) FROM stdin;
+1	4	787
+2	7	76
+3	9	763
+4	10	253
+5	9	574
+6	4	894
+7	2	839
+8	8	634
+9	10	367
+10	9	248
+11	8	21
+12	10	498
+13	6	896
+14	6	177
+15	8	1
+16	8	249
+17	4	660
+18	7	213
+19	6	737
+20	5	451
+21	3	549
+22	3	605
+23	4	603
+24	2	729
+25	7	872
+26	5	274
+27	6	979
+28	3	853
+29	3	711
+30	4	502
+31	10	538
+32	7	42
+33	6	754
+34	8	829
+35	2	437
+36	1	343
+37	2	149
+38	7	913
+39	9	312
+40	9	398
+41	6	482
+42	9	469
+43	6	753
+44	5	585
+45	10	797
+46	7	460
+47	9	377
+48	4	41
+49	1	673
+50	9	186
+51	2	761
+52	6	385
+53	10	296
+54	1	49
+55	8	791
+56	8	223
+57	9	1000
+58	7	821
+59	2	11
+60	2	171
+61	8	763
+62	2	776
+63	3	394
+64	6	438
+65	4	673
+66	3	566
+67	3	928
+68	7	574
+69	1	560
+70	5	22
+71	10	341
+72	9	646
+73	5	415
+74	1	702
+75	5	223
+76	10	373
+77	10	647
+78	2	550
+79	6	296
+80	5	932
+81	6	216
+82	10	847
+83	8	452
+84	4	25
+85	7	514
+86	8	10
+87	5	599
+88	4	391
+89	10	932
+90	2	463
+91	3	232
+92	2	869
+93	3	289
+94	7	396
+95	6	325
+96	3	260
+97	7	520
+98	7	678
+99	8	132
+100	6	425
+101	1	215
+102	10	402
+103	6	15
+104	5	938
+105	5	955
+106	2	769
+107	2	962
+108	1	355
+109	8	676
+110	3	214
+111	6	968
+112	10	877
+113	1	974
+114	5	323
+115	7	678
+116	9	486
+117	4	941
+118	9	342
+119	1	566
+120	2	409
+121	7	553
+122	10	978
+123	3	741
+124	3	673
+125	4	506
+126	9	147
+127	7	784
+128	7	376
+129	8	478
+130	7	414
+131	7	106
+132	9	264
+133	3	631
+134	8	371
+135	2	424
+136	8	608
+137	8	974
+138	3	361
+139	7	722
+140	10	394
+141	7	846
+142	9	402
+143	7	65
+144	8	93
+145	3	82
+146	7	33
+147	4	604
+148	8	306
+149	4	908
+150	6	862
+151	1	951
+152	6	848
+153	9	322
+154	2	438
+155	3	853
+156	2	844
+157	1	83
+158	4	936
+159	2	39
+160	8	55
+161	5	823
+162	6	776
+163	6	146
+164	4	118
+165	9	589
+166	3	323
+167	3	555
+168	1	869
+169	3	402
+170	6	464
+171	5	613
+172	5	170
+173	2	436
+174	5	393
+175	4	727
+176	7	341
+177	3	237
+178	5	252
+179	3	688
+180	7	43
+181	1	55
+182	10	315
+183	2	582
+184	10	131
+185	3	181
+186	8	729
+187	6	677
+188	7	723
+189	2	197
+190	9	80
+191	6	236
+192	7	300
+193	8	223
+194	5	331
+195	9	605
+196	1	585
+197	1	536
+198	4	664
+199	3	740
+200	2	373
+201	9	983
+202	5	665
+203	10	16
+204	6	487
+205	10	673
+206	6	710
+207	4	54
+208	3	673
+209	7	553
+210	3	244
+211	4	215
+212	1	519
+213	4	851
+214	6	661
+215	7	305
+216	8	469
+217	3	738
+218	6	141
+219	1	703
+220	9	543
+221	5	650
+222	9	356
+223	6	455
+224	3	949
+225	9	562
+226	10	820
+227	7	989
+228	1	82
+229	8	814
+230	5	167
+231	6	849
+232	3	561
+233	9	938
+234	4	318
+235	1	698
+236	10	668
+237	8	54
+238	3	162
+239	3	783
+240	10	859
+241	6	472
+242	2	574
+243	4	858
+244	4	493
+245	1	7
+246	8	359
+247	7	992
+248	10	49
+249	2	656
+250	1	8
+251	2	517
+252	3	647
+253	10	675
+254	9	889
+255	7	804
+256	7	995
+257	3	571
+258	9	809
+259	6	305
+260	10	506
+261	7	650
+262	1	59
+263	5	651
+264	9	109
+265	6	818
+266	2	600
+267	7	56
+268	6	706
+269	1	368
+270	10	807
+271	5	760
+272	9	85
+273	9	196
+274	2	347
+275	3	123
+276	6	934
+277	10	890
+278	4	142
+279	4	360
+280	6	596
+281	10	306
+282	1	351
+283	5	726
+284	4	712
+285	5	254
+286	8	890
+287	6	125
+288	9	677
+289	10	877
+290	7	16
+291	4	232
+292	1	324
+293	6	937
+294	4	792
+295	8	911
+296	5	745
+297	8	574
+298	6	26
+299	9	744
+300	1	315
+301	7	953
+302	1	167
+303	3	150
+304	9	19
+305	6	454
+306	7	552
+307	10	74
+308	4	521
+309	3	691
+310	10	250
+311	1	89
+312	4	45
+313	9	742
+314	5	283
+315	1	583
+316	7	196
+317	3	490
+318	4	264
+319	6	797
+320	9	132
+321	7	484
+322	4	481
+323	6	186
+324	10	821
+325	10	184
+326	10	47
+327	1	745
+328	1	989
+329	4	421
+330	9	7
+331	1	318
+332	5	602
+333	5	959
+334	3	410
+335	4	778
+336	6	986
+337	5	860
+338	2	47
+339	2	217
+340	1	67
+341	4	394
+342	5	741
+343	9	794
+344	9	807
+345	2	329
+346	1	146
+347	2	831
+348	5	97
+349	9	110
+350	9	303
+351	2	575
+352	7	576
+353	4	393
+354	6	323
+355	7	703
+356	8	557
+357	4	171
+358	10	189
+359	8	966
+360	8	99
+361	2	226
+362	1	84
+363	8	30
+364	6	990
+365	8	211
+366	2	507
+367	2	138
+368	5	806
+369	8	296
+370	3	369
+371	4	230
+372	6	152
+373	4	866
+374	7	683
+375	8	423
+376	3	808
+377	4	458
+378	8	267
+379	7	192
+380	9	988
+381	9	363
+382	4	184
+383	4	275
+384	5	965
+385	6	720
+386	4	185
+387	9	6
+388	5	945
+389	7	748
+390	9	286
+391	8	223
+392	7	879
+393	8	23
+394	9	928
+395	8	534
+396	6	318
+397	1	823
+398	7	95
+399	4	338
+400	2	288
+401	3	674
+402	5	674
+403	1	91
+404	7	80
+405	5	787
+406	6	552
+407	6	288
+408	7	168
+409	3	896
+410	5	503
+411	6	478
+412	4	866
+413	7	888
+414	7	541
+415	9	847
+416	1	193
+417	8	837
+418	10	398
+419	2	252
+420	1	889
+421	1	646
+422	2	383
+423	2	337
+424	5	800
+425	2	940
+426	5	482
+427	1	385
+428	1	540
+429	6	227
+430	10	709
+431	5	234
+432	10	93
+433	4	958
+434	1	90
+435	8	108
+436	5	958
+437	1	223
+438	9	860
+439	10	814
+440	6	561
+441	10	7
+442	10	609
+443	5	709
+444	9	127
+445	9	54
+446	9	89
+447	8	163
+448	9	1000
+449	8	260
+450	3	985
+451	1	479
+452	3	124
+453	5	711
+454	4	694
+455	8	839
+456	5	568
+457	9	786
+458	4	678
+459	8	358
+460	6	698
+461	3	987
+462	3	318
+463	10	747
+464	3	729
+465	10	927
+466	2	784
+467	6	235
+468	3	178
+469	1	969
+470	10	549
+471	2	788
+472	10	41
+473	3	411
+474	6	530
+475	1	511
+476	9	903
+477	6	76
+478	8	454
+479	5	549
+480	10	755
+481	3	418
+482	9	200
+483	8	160
+484	5	385
+485	3	15
+486	1	206
+487	3	930
+488	3	642
+489	5	675
+490	6	795
+491	4	539
+492	1	643
+493	1	779
+494	7	874
+495	2	606
+496	3	240
+497	9	837
+498	8	87
+499	2	476
+500	1	330
+501	3	783
+502	3	191
+503	5	370
+504	9	790
+505	10	203
+506	9	215
+507	4	512
+508	5	477
+509	9	777
+510	4	207
+511	1	624
+512	7	783
+513	2	163
+514	1	440
+515	9	427
+516	3	907
+517	5	482
+518	1	323
+519	5	259
+520	1	960
+521	2	792
+522	2	415
+523	5	673
+524	3	674
+525	6	646
+526	5	828
+527	6	529
+528	2	122
+529	8	269
+530	2	479
+531	1	985
+532	4	497
+533	2	9
+534	10	508
+535	2	284
+536	8	971
+537	6	804
+538	9	681
+539	4	423
+540	5	992
+541	9	966
+542	9	158
+543	4	604
+544	5	786
+545	5	395
+546	3	709
+547	8	617
+548	1	753
+549	10	407
+550	3	401
+551	9	461
+552	8	179
+553	5	401
+554	9	871
+555	9	972
+556	4	831
+557	5	105
+558	7	549
+559	5	826
+560	2	501
+561	10	31
+562	7	397
+563	4	307
+564	5	3
+565	1	511
+566	3	902
+567	5	629
+568	4	545
+569	8	745
+570	10	844
+571	6	458
+572	7	41
+573	8	680
+574	4	172
+575	2	806
+576	1	576
+577	4	707
+578	9	595
+579	5	926
+580	9	869
+581	5	924
+582	5	956
+583	5	802
+584	6	799
+585	5	297
+586	8	40
+587	1	569
+588	4	515
+589	5	880
+590	10	866
+591	6	610
+592	5	351
+593	9	329
+594	7	206
+595	3	115
+596	3	190
+597	8	587
+598	8	320
+599	2	388
+600	4	386
+\.
+
+
+--
+-- TOC entry 3514 (class 0 OID 32876)
+-- Dependencies: 228
+-- Data for Name: finalproduct_; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.finalproduct_ (quntityofbottle, batchnumber_, winetype_, bottlingdate_, numbottls) FROM stdin;
+1.5	1	Syrah	2024-11-01	511
+0.5	2	Syrah	2025-04-03	498
+1	3	Gamay	2024-09-05	711
+1	4	Merlot	2024-07-19	753
+0.5	5	Barbera	2024-04-25	205
+1	6	Pinot Noir	2024-07-26	266
+0.5	7	Barbera	2024-10-25	200
+1	8	Riesling	2025-03-09	632
+1.5	9	Syrah	2024-11-08	679
+1.5	10	Syrah	2025-03-31	316
+1	11	Pinot Noir	2024-09-08	185
+1	12	Merlot	2024-05-08	650
+0.75	13	Malbec	2024-10-14	796
+1	14	Merlot	2025-04-06	449
+1	15	Gamay	2024-05-08	176
+1	16	Dolcetto	2024-05-28	391
+0.75	17	Syrah	2025-02-26	785
+1	18	Barbera	2025-01-18	574
+0.75	19	Malbec	2024-09-01	195
+1	20	Malbec	2024-11-27	462
+1	21	Gamay	2024-09-29	663
+0.75	22	Gamay	2025-04-17	592
+1	23	Dolcetto	2024-10-01	688
+1.5	24	Gamay	2024-10-10	363
+0.75	25	Syrah	2025-03-05	625
+1.5	26	Riesling	2025-03-22	719
+0.75	27	Dolcetto	2024-05-20	664
+0.75	28	Malbec	2024-05-19	293
+0.5	29	Gamay	2025-02-07	467
+0.75	30	Malbec	2024-09-07	330
+1	31	Dolcetto	2025-04-13	384
+0.75	32	Merlot	2024-09-20	783
+0.5	33	Malbec	2024-06-13	118
+1	34	Malbec	2024-11-24	687
+0.5	35	Gamay	2024-06-07	438
+0.5	36	Merlot	2024-12-03	587
+0.75	37	Pinot Noir	2024-12-18	524
+1	38	Gamay	2024-10-12	218
+0.5	39	Dolcetto	2024-08-01	542
+1.5	40	Gamay	2024-12-16	742
+0.5	41	Syrah	2025-04-10	332
+1.5	42	Syrah	2024-06-28	172
+1	43	Malbec	2024-06-07	133
+0.75	44	Pinot Noir	2024-11-29	566
+1.5	45	Dolcetto	2024-04-26	170
+0.75	46	Dolcetto	2024-12-06	385
+1.5	47	Barbera	2024-07-12	414
+0.5	48	Merlot	2024-10-25	471
+1	49	Dolcetto	2024-10-13	401
+0.75	50	Barbera	2024-12-23	673
+1	51	Gamay	2024-10-03	266
+1.5	52	Pinot Noir	2024-06-13	227
+0.5	53	Malbec	2025-04-17	271
+0.5	54	Riesling	2024-10-05	520
+0.75	55	Merlot	2024-10-22	513
+0.5	56	Dolcetto	2024-07-24	360
+1.5	57	Pinot Noir	2024-06-29	388
+0.75	58	Syrah	2024-09-23	684
+1	59	Malbec	2024-06-18	393
+1	60	Syrah	2024-11-24	635
+1.5	61	Dolcetto	2025-01-29	507
+0.5	62	Pinot Noir	2025-03-12	513
+0.5	63	Riesling	2024-06-13	521
+0.75	64	Syrah	2025-03-30	553
+0.75	65	Pinot Noir	2024-08-21	600
+0.5	66	Barbera	2024-12-25	550
+0.5	67	Riesling	2024-12-03	224
+0.75	68	Riesling	2024-11-09	240
+1	69	Malbec	2024-05-19	454
+0.75	70	Malbec	2024-10-27	662
+0.5	71	Riesling	2024-05-26	280
+1.5	72	Barbera	2024-08-17	716
+0.75	73	Riesling	2024-04-29	363
+0.5	74	Riesling	2024-07-21	639
+0.75	75	Merlot	2024-11-09	555
+0.75	76	Barbera	2024-04-25	599
+1	77	Dolcetto	2025-04-04	103
+0.5	78	Gamay	2024-10-03	275
+0.75	79	Merlot	2024-09-17	522
+0.75	80	Malbec	2025-04-07	651
+1	81	Malbec	2024-06-01	635
+0.75	82	Pinot Noir	2024-08-09	194
+0.75	83	Pinot Noir	2024-11-25	673
+0.75	84	Dolcetto	2025-04-03	414
+0.75	85	Dolcetto	2025-01-17	222
+0.75	86	Syrah	2025-02-21	268
+1.5	87	Riesling	2025-03-19	788
+1	88	Malbec	2024-07-27	213
+0.75	89	Syrah	2024-08-27	542
+0.5	90	Dolcetto	2024-06-03	517
+1.5	91	Malbec	2024-11-25	481
+0.75	92	Gamay	2025-02-22	174
+1	93	Riesling	2024-05-11	311
+0.5	94	Gamay	2024-10-14	214
+0.5	95	Syrah	2024-06-04	121
+0.5	96	Barbera	2024-10-22	377
+0.75	97	Barbera	2024-09-01	336
+1	98	Merlot	2024-06-05	120
+1.5	99	Riesling	2025-04-15	503
+1.5	100	Syrah	2024-10-12	124
+0.5	101	Dolcetto	2024-06-22	420
+1	102	Pinot Noir	2025-01-08	111
+0.75	103	Malbec	2024-05-13	462
+0.5	104	Riesling	2024-05-17	750
+1.5	105	Barbera	2025-01-29	157
+1.5	106	Merlot	2024-04-30	173
+0.75	107	Syrah	2025-01-31	555
+0.5	108	Riesling	2024-07-16	607
+0.75	109	Malbec	2024-08-21	408
+1	110	Dolcetto	2024-09-11	240
+1	111	Pinot Noir	2024-10-11	613
+0.5	112	Riesling	2024-08-05	771
+1	113	Pinot Noir	2024-11-12	570
+0.75	114	Syrah	2025-03-06	764
+0.75	115	Dolcetto	2024-07-16	677
+1	116	Merlot	2024-09-07	648
+1.5	117	Syrah	2024-05-18	329
+0.75	118	Syrah	2024-09-28	797
+1.5	119	Dolcetto	2024-10-26	343
+1	120	Pinot Noir	2025-02-24	153
+1	121	Merlot	2024-09-03	252
+0.5	122	Barbera	2024-08-11	276
+1.5	123	Syrah	2024-08-22	176
+1	124	Merlot	2025-03-02	235
+1	125	Riesling	2025-02-18	506
+0.75	126	Riesling	2024-11-11	457
+1	127	Gamay	2024-12-07	613
+0.75	128	Gamay	2024-12-03	501
+0.75	129	Dolcetto	2025-01-22	111
+1	130	Gamay	2024-05-04	497
+1.5	131	Merlot	2025-01-30	162
+1	132	Pinot Noir	2024-06-23	685
+1	133	Pinot Noir	2024-07-10	670
+1	134	Barbera	2024-08-30	306
+1.5	135	Gamay	2024-07-05	758
+1.5	136	Barbera	2024-12-24	611
+1.5	137	Malbec	2024-04-29	240
+0.75	138	Gamay	2025-03-16	798
+1.5	139	Riesling	2024-08-06	202
+1	140	Pinot Noir	2024-11-17	680
+0.75	141	Pinot Noir	2025-02-23	692
+1.5	142	Syrah	2024-12-14	113
+0.75	143	Malbec	2025-01-22	335
+0.75	144	Barbera	2024-07-29	520
+1.5	145	Riesling	2024-08-26	513
+1.5	146	Merlot	2024-12-12	603
+1.5	147	Merlot	2024-10-28	200
+0.75	148	Malbec	2024-10-11	729
+0.5	149	Riesling	2024-09-26	511
+0.5	150	Riesling	2024-06-07	267
+1	151	Syrah	2024-09-27	593
+1	152	Malbec	2024-08-05	200
+0.75	153	Riesling	2024-05-29	370
+0.5	154	Syrah	2024-05-23	547
+0.5	155	Merlot	2024-12-13	464
+1	156	Pinot Noir	2025-03-10	184
+1	157	Pinot Noir	2024-06-02	387
+0.75	158	Riesling	2024-07-30	363
+1.5	159	Syrah	2025-04-19	268
+1.5	160	Dolcetto	2024-12-26	300
+0.5	161	Barbera	2024-06-05	301
+0.5	162	Riesling	2024-11-21	440
+1.5	163	Merlot	2024-05-06	330
+0.75	164	Pinot Noir	2024-12-18	699
+0.75	165	Barbera	2024-11-18	334
+1	166	Malbec	2024-09-19	530
+1.5	167	Merlot	2025-02-22	332
+0.5	168	Syrah	2024-11-20	472
+1.5	169	Barbera	2025-02-03	330
+0.5	170	Malbec	2024-07-14	510
+0.5	171	Gamay	2025-04-19	134
+1.5	172	Gamay	2025-01-06	640
+1.5	173	Syrah	2024-10-21	621
+1	174	Merlot	2024-05-04	250
+0.5	175	Syrah	2024-10-07	629
+0.75	176	Pinot Noir	2025-02-25	138
+0.75	177	Gamay	2024-06-20	738
+0.75	178	Syrah	2024-08-26	724
+0.5	179	Dolcetto	2024-09-10	448
+1.5	180	Dolcetto	2024-09-09	751
+0.75	181	Pinot Noir	2024-08-04	364
+0.75	182	Riesling	2024-12-14	726
+1	183	Malbec	2024-06-09	120
+1	184	Merlot	2025-02-12	225
+0.75	185	Merlot	2024-05-09	798
+1.5	186	Malbec	2024-05-12	458
+1	187	Dolcetto	2024-05-09	568
+1	188	Pinot Noir	2025-04-05	209
+0.75	189	Syrah	2024-09-06	615
+0.75	190	Dolcetto	2024-05-09	221
+0.75	191	Barbera	2024-12-20	707
+1.5	192	Pinot Noir	2025-03-12	544
+0.5	193	Syrah	2024-08-10	250
+0.75	194	Syrah	2024-06-24	318
+0.75	195	Dolcetto	2025-03-12	657
+1.5	196	Merlot	2024-05-23	564
+0.5	197	Riesling	2025-02-22	225
+1.5	198	Pinot Noir	2024-11-07	340
+0.5	199	Barbera	2024-06-26	526
+0.5	200	Dolcetto	2025-03-29	513
+0.75	201	Dolcetto	2024-08-28	204
+0.75	202	Dolcetto	2024-06-20	548
+0.5	203	Barbera	2025-01-22	232
+1.5	204	Merlot	2025-02-01	205
+0.75	205	Pinot Noir	2024-06-19	268
+0.75	206	Malbec	2024-07-23	292
+0.5	207	Merlot	2025-01-03	679
+1.5	208	Dolcetto	2024-10-13	509
+0.5	209	Gamay	2024-09-07	391
+0.5	210	Pinot Noir	2025-04-11	350
+0.75	211	Riesling	2024-10-16	587
+1.5	212	Riesling	2025-03-22	773
+1.5	213	Merlot	2025-02-04	597
+1	214	Dolcetto	2025-01-24	349
+1	215	Barbera	2024-09-14	368
+1	216	Pinot Noir	2024-11-28	198
+1	217	Pinot Noir	2024-06-30	712
+1	218	Riesling	2025-03-06	791
+0.75	219	Riesling	2024-08-26	754
+0.75	220	Malbec	2024-11-01	604
+1	221	Gamay	2024-08-04	571
+1.5	222	Riesling	2024-11-25	655
+0.75	223	Barbera	2024-09-27	445
+0.75	224	Dolcetto	2024-07-31	142
+1.5	225	Malbec	2024-04-30	587
+0.75	226	Merlot	2024-08-20	731
+1	227	Dolcetto	2024-12-26	545
+1	228	Malbec	2024-09-30	118
+1.5	229	Barbera	2025-03-21	784
+1.5	230	Merlot	2024-08-05	411
+0.5	231	Riesling	2024-07-20	380
+1	232	Merlot	2025-03-12	532
+0.5	233	Gamay	2024-11-30	276
+0.75	234	Riesling	2025-02-04	279
+1	235	Dolcetto	2024-11-06	454
+1	236	Merlot	2024-07-28	438
+0.5	237	Barbera	2024-06-24	700
+0.5	238	Merlot	2024-09-25	659
+1.5	239	Malbec	2025-02-12	699
+1	240	Pinot Noir	2024-04-26	251
+0.75	241	Merlot	2024-11-26	669
+1	242	Merlot	2024-09-05	297
+1	243	Syrah	2024-08-19	140
+1.5	244	Barbera	2024-07-05	132
+1.5	245	Barbera	2025-03-27	467
+1	246	Dolcetto	2025-02-06	433
+1.5	247	Merlot	2024-12-23	789
+1.5	248	Malbec	2025-01-03	367
+1	249	Malbec	2025-02-27	583
+1	250	Merlot	2024-11-06	341
+0.5	251	Pinot Noir	2024-07-23	440
+1.5	252	Dolcetto	2024-04-26	577
+0.75	253	Syrah	2024-10-08	703
+1.5	254	Dolcetto	2025-01-11	213
+1	255	Pinot Noir	2025-03-17	216
+1	256	Riesling	2024-10-10	484
+0.5	257	Dolcetto	2025-04-15	271
+0.5	258	Merlot	2024-06-17	294
+0.75	259	Syrah	2025-01-11	789
+1.5	260	Syrah	2024-08-08	684
+1.5	261	Pinot Noir	2025-04-02	394
+1	262	Malbec	2024-04-26	785
+1	263	Riesling	2024-09-16	132
+1	264	Gamay	2024-07-18	544
+0.5	265	Dolcetto	2024-07-25	105
+0.75	266	Syrah	2024-11-14	387
+0.75	267	Barbera	2025-03-13	392
+0.75	268	Barbera	2024-09-17	119
+1.5	269	Barbera	2025-02-11	370
+0.5	270	Gamay	2024-11-23	761
+1.5	271	Malbec	2024-06-30	198
+1.5	272	Dolcetto	2024-05-10	105
+1.5	273	Syrah	2024-06-21	665
+0.5	274	Malbec	2024-11-22	761
+0.5	275	Malbec	2024-06-10	250
+0.75	276	Riesling	2024-06-18	719
+1.5	277	Gamay	2024-07-06	465
+0.75	278	Gamay	2024-11-14	539
+0.5	279	Riesling	2024-10-26	582
+0.5	280	Pinot Noir	2025-03-02	745
+1.5	281	Malbec	2025-03-22	263
+1	282	Merlot	2025-02-07	549
+1	283	Riesling	2024-09-03	633
+1	284	Pinot Noir	2024-07-29	477
+0.75	285	Dolcetto	2024-09-05	365
+0.5	286	Pinot Noir	2024-07-26	285
+1	287	Dolcetto	2025-01-03	397
+1.5	288	Merlot	2024-09-20	295
+0.75	289	Riesling	2024-08-16	342
+1	290	Syrah	2025-01-15	683
+0.75	291	Gamay	2025-02-23	192
+0.75	292	Barbera	2024-11-30	578
+0.75	293	Barbera	2024-04-25	697
+0.75	294	Dolcetto	2024-07-14	607
+0.75	295	Gamay	2024-08-02	102
+0.5	296	Malbec	2024-05-27	354
+0.5	297	Malbec	2024-10-22	512
+1	298	Syrah	2024-05-23	435
+1.5	299	Gamay	2024-12-24	483
+0.5	300	Gamay	2024-04-22	499
+0.5	301	Merlot	2024-11-21	346
+1.5	302	Gamay	2024-08-29	274
+0.75	303	Barbera	2025-02-19	540
+1.5	304	Merlot	2024-10-16	727
+1	305	Dolcetto	2024-08-16	323
+0.5	306	Riesling	2025-04-06	640
+1.5	307	Merlot	2025-03-24	587
+1	308	Pinot Noir	2024-07-09	347
+0.75	309	Gamay	2025-03-23	215
+1	310	Syrah	2024-05-14	350
+0.75	311	Barbera	2024-11-09	329
+1.5	312	Merlot	2024-10-30	115
+0.75	313	Dolcetto	2024-06-27	639
+1	314	Gamay	2024-05-30	689
+0.5	315	Malbec	2024-10-05	269
+1	316	Dolcetto	2024-08-22	388
+0.75	317	Merlot	2024-09-03	133
+1	318	Gamay	2024-05-05	179
+1.5	319	Gamay	2025-02-12	243
+1	320	Pinot Noir	2024-09-04	133
+1.5	321	Syrah	2024-06-23	564
+1	322	Syrah	2024-05-24	239
+1.5	323	Barbera	2024-08-07	689
+0.5	324	Gamay	2025-01-23	503
+0.5	325	Malbec	2025-01-05	572
+0.5	326	Gamay	2024-09-04	331
+0.75	327	Barbera	2024-09-04	198
+1.5	328	Dolcetto	2024-09-20	537
+0.5	329	Gamay	2024-07-01	664
+1.5	330	Merlot	2025-04-14	431
+1	331	Pinot Noir	2024-06-13	724
+1	332	Gamay	2024-07-22	663
+1	333	Dolcetto	2025-03-21	490
+1.5	334	Dolcetto	2025-03-29	695
+1	335	Riesling	2025-02-23	369
+0.75	336	Pinot Noir	2024-05-30	378
+0.75	337	Pinot Noir	2024-12-29	722
+1	338	Barbera	2024-10-14	629
+1	339	Barbera	2025-02-04	383
+1.5	340	Syrah	2025-03-19	120
+1	341	Gamay	2025-03-26	107
+1.5	342	Syrah	2025-02-13	381
+1	343	Merlot	2025-02-04	153
+1.5	344	Merlot	2025-03-15	670
+1.5	345	Riesling	2025-01-19	637
+0.75	346	Gamay	2024-06-23	521
+1	347	Pinot Noir	2024-12-21	775
+0.75	348	Gamay	2024-04-29	213
+1	349	Gamay	2025-02-20	116
+0.5	350	Barbera	2024-06-23	504
+0.75	351	Malbec	2024-05-06	318
+0.5	352	Merlot	2025-02-20	344
+1.5	353	Syrah	2025-01-31	444
+1.5	354	Dolcetto	2025-02-27	268
+0.75	355	Barbera	2025-02-14	302
+1.5	356	Barbera	2024-12-17	692
+0.75	357	Dolcetto	2024-10-10	534
+1	358	Merlot	2024-12-19	571
+1.5	359	Dolcetto	2024-11-22	348
+0.5	360	Barbera	2024-09-23	126
+0.75	361	Dolcetto	2024-10-11	286
+1.5	362	Pinot Noir	2025-03-29	701
+0.5	363	Malbec	2024-05-07	495
+0.75	364	Pinot Noir	2025-01-13	515
+0.75	365	Riesling	2024-08-10	436
+1.5	366	Syrah	2024-06-14	521
+0.75	367	Gamay	2024-05-27	498
+1	368	Gamay	2024-08-30	646
+1	369	Dolcetto	2025-04-12	357
+1.5	370	Syrah	2024-05-15	632
+0.75	371	Merlot	2025-03-25	404
+1.5	372	Pinot Noir	2024-06-06	385
+0.75	373	Gamay	2025-03-19	162
+0.5	374	Gamay	2024-07-18	389
+1	375	Dolcetto	2024-09-07	434
+1.5	376	Merlot	2024-08-11	286
+0.5	377	Dolcetto	2024-11-10	736
+0.75	378	Pinot Noir	2024-09-18	766
+1.5	379	Syrah	2025-04-13	640
+0.5	380	Malbec	2025-04-07	695
+0.5	381	Merlot	2024-06-02	610
+1.5	382	Pinot Noir	2024-10-10	439
+1.5	383	Merlot	2024-06-22	588
+0.75	384	Pinot Noir	2024-08-03	174
+1	385	Malbec	2024-10-12	713
+0.5	386	Dolcetto	2025-03-21	237
+0.5	387	Merlot	2024-05-14	280
+1	388	Dolcetto	2024-12-03	405
+0.5	389	Barbera	2024-06-12	482
+0.75	390	Syrah	2024-11-19	365
+0.75	391	Dolcetto	2024-11-16	458
+0.75	392	Gamay	2024-11-07	248
+0.5	393	Pinot Noir	2024-11-22	291
+1.5	394	Riesling	2024-06-17	705
+1.5	395	Gamay	2024-09-11	122
+0.5	396	Barbera	2024-12-01	118
+1	397	Barbera	2024-09-29	523
+0.75	398	Pinot Noir	2024-12-20	576
+0.75	399	Barbera	2025-01-07	578
+0.5	400	Barbera	2024-12-11	173
+1.5	401	Barbera	2024-08-30	200
+1.5	402	Riesling	2025-01-31	593
+0.75	403	Syrah	2024-09-14	663
+0.75	404	Malbec	2025-02-16	668
+1	405	Dolcetto	2024-11-23	692
+1	406	Dolcetto	2025-03-15	449
+0.75	407	Dolcetto	2025-04-19	165
+0.5	408	Riesling	2024-10-12	372
+1.5	409	Malbec	2025-04-19	713
+0.75	410	Riesling	2024-08-14	158
+1	411	Dolcetto	2024-08-16	627
+1	412	Gamay	2025-04-15	596
+1	413	Merlot	2024-06-05	416
+1	414	Riesling	2025-01-04	442
+1	415	Pinot Noir	2024-04-28	157
+1	416	Gamay	2025-02-28	456
+0.5	417	Malbec	2025-02-27	157
+0.75	418	Riesling	2024-08-13	204
+0.5	419	Pinot Noir	2024-10-31	111
+0.5	420	Gamay	2024-07-27	145
+0.5	421	Syrah	2024-08-29	533
+1	422	Pinot Noir	2024-05-18	471
+1.5	423	Pinot Noir	2024-10-18	595
+1	424	Gamay	2025-02-25	525
+0.5	425	Barbera	2024-12-18	203
+1.5	426	Barbera	2024-05-26	277
+1.5	427	Dolcetto	2024-11-20	624
+1	428	Barbera	2024-04-21	192
+0.75	429	Malbec	2024-06-12	363
+1	430	Malbec	2024-05-07	332
+1.5	431	Riesling	2024-05-26	427
+1.5	432	Merlot	2024-05-07	193
+0.5	433	Riesling	2024-11-22	361
+0.75	434	Malbec	2024-06-07	552
+0.5	435	Syrah	2024-05-30	753
+1	436	Barbera	2025-04-05	175
+1	437	Syrah	2025-01-04	450
+1.5	438	Barbera	2024-06-10	287
+1.5	439	Merlot	2025-01-24	169
+0.75	440	Dolcetto	2024-09-29	722
+1.5	441	Merlot	2025-04-12	562
+1.5	442	Riesling	2024-06-17	226
+0.5	443	Merlot	2024-10-14	264
+1	444	Riesling	2024-06-01	130
+1	445	Riesling	2025-03-25	638
+0.5	446	Malbec	2025-04-14	726
+0.75	447	Riesling	2024-07-31	408
+1	448	Barbera	2024-09-19	765
+0.75	449	Barbera	2024-08-04	447
+0.75	450	Malbec	2025-01-23	764
+1.5	451	Merlot	2025-03-29	274
+1	452	Pinot Noir	2025-01-12	410
+0.75	453	Barbera	2025-02-12	109
+1	454	Malbec	2025-03-28	472
+0.5	455	Malbec	2024-09-22	482
+0.5	456	Gamay	2024-07-20	391
+1.5	457	Merlot	2024-08-15	666
+1.5	458	Riesling	2025-02-24	772
+0.5	459	Pinot Noir	2024-06-30	749
+0.5	460	Merlot	2024-04-28	100
+1	461	Syrah	2024-07-02	749
+1.5	462	Gamay	2025-03-02	249
+1.5	463	Pinot Noir	2025-04-16	148
+0.5	464	Pinot Noir	2024-10-01	688
+1	465	Riesling	2025-04-10	585
+0.5	466	Malbec	2024-11-20	549
+0.75	467	Merlot	2025-02-05	755
+0.75	468	Syrah	2024-07-28	488
+1	469	Barbera	2024-07-30	591
+1	470	Syrah	2024-05-05	753
+0.5	471	Syrah	2024-06-26	243
+0.5	472	Riesling	2024-11-22	200
+0.5	473	Barbera	2024-11-06	238
+1	474	Syrah	2025-03-25	366
+0.5	475	Barbera	2024-07-18	309
+1.5	476	Gamay	2024-08-25	672
+0.5	477	Syrah	2024-11-09	625
+0.5	478	Riesling	2024-05-05	531
+0.75	479	Syrah	2024-10-16	573
+0.5	480	Dolcetto	2025-04-17	316
+0.5	481	Syrah	2024-10-20	690
+1.5	482	Malbec	2024-08-15	682
+0.5	483	Barbera	2025-04-13	388
+0.75	484	Malbec	2024-11-18	647
+0.5	485	Syrah	2024-09-13	454
+1	486	Dolcetto	2024-05-27	305
+0.5	487	Dolcetto	2024-12-24	145
+0.5	488	Merlot	2025-02-23	107
+0.5	489	Gamay	2024-04-24	697
+1	490	Syrah	2025-03-12	795
+1	491	Malbec	2025-02-19	381
+1.5	492	Gamay	2025-01-03	226
+0.75	493	Malbec	2024-08-05	727
+0.75	494	Syrah	2024-07-04	268
+0.75	495	Riesling	2024-09-27	224
+0.5	496	Syrah	2025-01-05	331
+0.75	497	Pinot Noir	2025-01-03	724
+0.75	498	Syrah	2024-12-10	547
+1.5	499	Pinot Noir	2024-10-29	227
+0.5	500	Riesling	2024-12-23	571
+0.75	501	Syrah	2025-01-06	435
+0.75	502	Dolcetto	2024-05-01	333
+1	503	Dolcetto	2024-10-15	489
+1	504	Dolcetto	2025-03-04	757
+0.75	505	Malbec	2025-01-23	636
+1	506	Dolcetto	2024-08-20	103
+0.5	507	Merlot	2025-04-05	309
+0.75	508	Merlot	2024-05-30	193
+1	509	Merlot	2024-07-21	436
+1	510	Syrah	2024-11-11	279
+1	511	Riesling	2024-09-27	547
+0.5	512	Riesling	2024-10-26	427
+1.5	513	Riesling	2024-04-30	202
+1.5	514	Pinot Noir	2025-03-29	733
+1	515	Pinot Noir	2025-03-28	544
+0.5	516	Malbec	2024-10-17	405
+0.75	517	Dolcetto	2024-05-25	584
+0.75	518	Barbera	2024-05-18	519
+0.75	519	Syrah	2024-12-06	402
+1	520	Barbera	2025-03-13	293
+1.5	521	Pinot Noir	2024-06-18	244
+1	522	Barbera	2024-09-01	629
+1.5	523	Malbec	2025-04-11	235
+1	524	Pinot Noir	2025-02-09	255
+0.75	525	Malbec	2024-11-02	615
+0.5	526	Merlot	2025-01-22	384
+0.75	527	Syrah	2025-04-19	628
+1.5	528	Pinot Noir	2025-02-09	439
+1	529	Merlot	2024-10-17	245
+1	530	Barbera	2025-04-14	734
+0.5	531	Barbera	2024-07-11	381
+0.75	532	Dolcetto	2024-12-14	329
+0.5	533	Pinot Noir	2024-09-06	113
+0.5	534	Malbec	2024-08-18	730
+0.5	535	Pinot Noir	2024-06-21	741
+0.5	536	Pinot Noir	2024-05-11	244
+1	537	Dolcetto	2024-11-25	699
+0.5	538	Gamay	2025-02-15	393
+0.75	539	Barbera	2024-08-22	268
+0.5	540	Pinot Noir	2024-06-10	136
+1.5	541	Barbera	2024-05-23	506
+0.75	542	Gamay	2024-10-31	252
+0.5	543	Syrah	2025-04-09	500
+0.5	544	Pinot Noir	2025-04-13	394
+1	545	Gamay	2024-05-06	406
+0.75	546	Dolcetto	2024-07-17	483
+1.5	547	Merlot	2024-07-25	669
+0.5	548	Syrah	2024-07-06	635
+0.75	549	Pinot Noir	2024-10-12	254
+0.5	550	Riesling	2025-03-13	162
+0.5	551	Malbec	2024-04-22	713
+0.75	552	Malbec	2025-01-14	668
+1.5	553	Riesling	2024-04-25	202
+1.5	554	Barbera	2024-12-16	160
+0.75	555	Barbera	2024-06-12	293
+0.5	556	Barbera	2024-12-03	511
+0.75	557	Barbera	2025-04-05	392
+0.75	558	Pinot Noir	2024-06-10	736
+0.5	559	Riesling	2024-05-21	352
+0.5	560	Gamay	2024-11-05	470
+0.75	561	Dolcetto	2024-12-25	636
+0.5	562	Syrah	2025-01-17	296
+0.5	563	Dolcetto	2024-12-15	776
+1.5	564	Gamay	2024-11-22	349
+0.75	565	Dolcetto	2025-02-25	680
+1	566	Dolcetto	2024-04-24	264
+1.5	567	Dolcetto	2025-02-18	222
+1.5	568	Dolcetto	2024-09-17	749
+1	569	Pinot Noir	2025-03-10	757
+0.5	570	Riesling	2025-01-17	240
+1.5	571	Pinot Noir	2024-07-26	232
+0.75	572	Syrah	2024-05-26	791
+1	573	Dolcetto	2025-01-09	323
+0.75	574	Pinot Noir	2025-02-05	311
+0.75	575	Syrah	2024-09-07	238
+1.5	576	Barbera	2024-10-20	414
+1.5	577	Merlot	2024-08-06	229
+0.5	578	Riesling	2024-10-15	157
+1	579	Barbera	2024-10-31	505
+1.5	580	Merlot	2025-01-09	244
+1.5	581	Pinot Noir	2024-12-30	700
+1	582	Merlot	2024-10-24	319
+0.75	583	Malbec	2024-05-22	749
+0.5	584	Merlot	2024-11-04	672
+1	585	Pinot Noir	2024-12-22	591
+1	586	Merlot	2025-03-01	532
+0.5	587	Merlot	2024-05-19	543
+0.5	588	Malbec	2025-01-19	533
+1	589	Barbera	2024-10-30	361
+1	590	Riesling	2024-09-19	703
+0.75	591	Malbec	2024-07-16	301
+0.5	592	Dolcetto	2024-06-08	365
+1	593	Malbec	2024-10-17	215
+0.75	594	Barbera	2024-10-11	303
+0.5	595	Syrah	2024-12-25	158
+0.75	596	Barbera	2024-09-07	180
+1.5	597	Riesling	2025-04-20	140
+0.5	598	Merlot	2025-03-11	363
+1.5	599	Gamay	2024-09-04	419
+0.5	600	Pinot Noir	2024-05-12	798
+\.
+
+
+--
+-- TOC entry 3504 (class 0 OID 16389)
+-- Dependencies: 217
+-- Data for Name: grape_variety; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.grape_variety (g_name, color, grape_variety_id, vine_id) FROM stdin;
+Cabernet Sauvignon	Red	1	1
+Chardonnay	White	2	2
+Merlot	Red	3	3
+Merlot	Red	100	100
+Chardonnay	White	101	101
+Merlot	Red	102	102
+Merlot	Red	103	103
+Chardonnay	Red	104	104
+Merlot	White	105	105
+Merlot	White	106	106
+Cabernet Sauvignon	Red	107	107
+Merlot	White	108	108
+Chardonnay	White	109	109
+Cabernet Sauvignon	Red	110	110
+Merlot	Red	111	111
+Merlot	Red	112	112
+Merlot	Red	113	113
+Chardonnay	White	114	114
+Cabernet Sauvignon	White	115	115
+Merlot	White	116	116
+Cabernet Sauvignon	White	117	117
+Cabernet Sauvignon	Red	118	118
+Chardonnay	Red	119	119
+Chardonnay	White	120	120
+Merlot	Red	121	121
+Cabernet Sauvignon	White	122	122
+Merlot	White	123	123
+Chardonnay	Red	124	124
+Chardonnay	White	125	125
+Cabernet Sauvignon	Red	126	126
+Merlot	White	127	127
+Cabernet Sauvignon	White	128	128
+Chardonnay	White	129	129
+Chardonnay	Red	130	130
+Chardonnay	Red	131	131
+Cabernet Sauvignon	White	132	132
+Merlot	White	133	133
+Merlot	Red	134	134
+Merlot	White	135	135
+Cabernet Sauvignon	Red	136	136
+Chardonnay	Red	137	137
+Merlot	Red	138	138
+Cabernet Sauvignon	Red	139	139
+Cabernet Sauvignon	Red	140	140
+Merlot	White	141	141
+Chardonnay	White	142	142
+Chardonnay	White	143	143
+Merlot	Red	144	144
+Merlot	Red	145	145
+Chardonnay	White	146	146
+Chardonnay	Red	147	147
+Merlot	White	148	148
+Chardonnay	Red	149	149
+Cabernet Sauvignon	Red	150	150
+Chardonnay	White	151	151
+Chardonnay	White	152	152
+Cabernet Sauvignon	White	153	153
+Chardonnay	White	154	154
+Merlot	Red	155	155
+Chardonnay	White	156	156
+Merlot	Red	157	157
+Cabernet Sauvignon	White	158	158
+Cabernet Sauvignon	Red	159	159
+Cabernet Sauvignon	Red	160	160
+Merlot	Red	161	161
+Chardonnay	White	162	162
+Chardonnay	White	163	163
+Merlot	Red	164	164
+Chardonnay	Red	165	165
+Merlot	White	166	166
+Chardonnay	White	167	167
+Chardonnay	White	168	168
+Merlot	White	169	169
+Cabernet Sauvignon	White	170	170
+Cabernet Sauvignon	Red	171	171
+Cabernet Sauvignon	White	172	172
+Chardonnay	Red	173	173
+Merlot	Red	174	174
+Merlot	Red	175	175
+Cabernet Sauvignon	Red	176	176
+Cabernet Sauvignon	White	177	177
+Merlot	White	178	178
+Merlot	White	179	179
+Cabernet Sauvignon	Red	180	180
+Chardonnay	Red	181	181
+Cabernet Sauvignon	Red	182	182
+Chardonnay	Red	183	183
+Chardonnay	White	184	184
+Cabernet Sauvignon	Red	185	185
+Merlot	Red	186	186
+Chardonnay	Red	187	187
+Merlot	Red	188	188
+Merlot	Red	189	189
+Cabernet Sauvignon	Red	190	190
+Chardonnay	Red	191	191
+Merlot	White	192	192
+Cabernet Sauvignon	Red	193	193
+Chardonnay	White	194	194
+Merlot	Red	195	195
+Chardonnay	White	196	196
+Chardonnay	Red	197	197
+Cabernet Sauvignon	White	198	198
+Merlot	Red	199	199
+Cabernet Sauvignon	Red	200	200
+Cabernet Sauvignon	White	201	201
+Cabernet Sauvignon	White	202	202
+Cabernet Sauvignon	White	203	203
+Chardonnay	Red	204	204
+Chardonnay	White	205	205
+Chardonnay	Red	206	206
+Chardonnay	White	207	207
+Chardonnay	White	208	208
+Cabernet Sauvignon	Red	209	209
+Merlot	Red	210	210
+Chardonnay	Red	211	211
+Merlot	White	212	212
+Merlot	Red	213	213
+Merlot	Red	214	214
+Merlot	Red	215	215
+Chardonnay	White	216	216
+Chardonnay	White	217	217
+Cabernet Sauvignon	Red	218	218
+Merlot	White	219	219
+Merlot	White	220	220
+Cabernet Sauvignon	White	221	221
+Merlot	Red	222	222
+Chardonnay	White	223	223
+Cabernet Sauvignon	White	224	224
+Merlot	Red	225	225
+Chardonnay	White	226	226
+Merlot	Red	227	227
+Merlot	White	228	228
+Merlot	White	229	229
+Chardonnay	Red	230	230
+Cabernet Sauvignon	Red	231	231
+Chardonnay	Red	232	232
+Cabernet Sauvignon	Red	233	233
+Chardonnay	White	234	234
+Merlot	Red	235	235
+Chardonnay	Red	236	236
+Merlot	Red	237	237
+Cabernet Sauvignon	White	238	238
+Merlot	White	239	239
+Merlot	Red	240	240
+Cabernet Sauvignon	White	241	241
+Cabernet Sauvignon	White	242	242
+Merlot	Red	243	243
+Merlot	Red	244	244
+Cabernet Sauvignon	Red	245	245
+Merlot	White	246	246
+Cabernet Sauvignon	Red	247	247
+Cabernet Sauvignon	Red	248	248
+Cabernet Sauvignon	White	249	249
+Merlot	White	250	250
+Cabernet Sauvignon	White	251	251
+Cabernet Sauvignon	White	252	252
+Merlot	White	253	253
+Cabernet Sauvignon	White	254	254
+Chardonnay	White	255	255
+Merlot	White	256	256
+Cabernet Sauvignon	White	257	257
+Merlot	White	258	258
+Merlot	White	259	259
+Cabernet Sauvignon	White	260	260
+Cabernet Sauvignon	White	261	261
+Cabernet Sauvignon	White	262	262
+Chardonnay	Red	263	263
+Chardonnay	White	264	264
+Merlot	Red	265	265
+Merlot	White	266	266
+Cabernet Sauvignon	Red	267	267
+Chardonnay	Red	268	268
+Chardonnay	White	269	269
+Chardonnay	White	270	270
+Cabernet Sauvignon	White	271	271
+Chardonnay	White	272	272
+Cabernet Sauvignon	Red	273	273
+Cabernet Sauvignon	White	274	274
+Cabernet Sauvignon	Red	275	275
+Chardonnay	White	276	276
+Cabernet Sauvignon	Red	277	277
+Cabernet Sauvignon	White	278	278
+Merlot	White	279	279
+Cabernet Sauvignon	Red	280	280
+Merlot	Red	281	281
+Cabernet Sauvignon	Red	282	282
+Cabernet Sauvignon	Red	283	283
+Chardonnay	White	284	284
+Chardonnay	White	285	285
+Cabernet Sauvignon	White	286	286
+Cabernet Sauvignon	White	287	287
+Merlot	Red	288	288
+Merlot	Red	289	289
+Chardonnay	Red	290	290
+Chardonnay	Red	291	291
+Chardonnay	Red	292	292
+Merlot	Red	293	293
+Chardonnay	White	294	294
+Merlot	White	295	295
+Chardonnay	White	296	296
+Merlot	Red	297	297
+Merlot	White	298	298
+Merlot	White	299	299
+Chardonnay	Red	300	300
+Merlot	Red	301	301
+Merlot	Red	302	302
+Chardonnay	Red	303	303
+Cabernet Sauvignon	White	304	304
+Merlot	Red	305	305
+Cabernet Sauvignon	Red	306	306
+Chardonnay	Red	307	307
+Cabernet Sauvignon	White	308	308
+Cabernet Sauvignon	White	309	309
+Chardonnay	Red	310	310
+Chardonnay	Red	311	311
+Merlot	White	312	312
+Chardonnay	White	313	313
+Cabernet Sauvignon	Red	314	314
+Cabernet Sauvignon	White	315	315
+Cabernet Sauvignon	White	316	316
+Cabernet Sauvignon	White	317	317
+Chardonnay	White	318	318
+Merlot	White	319	319
+Cabernet Sauvignon	Red	320	320
+Merlot	White	321	321
+Merlot	White	322	322
+Cabernet Sauvignon	White	323	323
+Cabernet Sauvignon	Red	324	324
+Cabernet Sauvignon	White	325	325
+Merlot	White	326	326
+Cabernet Sauvignon	White	327	327
+Chardonnay	White	328	328
+Chardonnay	White	329	329
+Chardonnay	White	330	330
+Merlot	White	331	331
+Cabernet Sauvignon	Red	332	332
+Cabernet Sauvignon	White	333	333
+Cabernet Sauvignon	Red	334	334
+Cabernet Sauvignon	White	335	335
+Merlot	White	336	336
+Chardonnay	Red	337	337
+Chardonnay	White	338	338
+Cabernet Sauvignon	White	339	339
+Merlot	Red	340	340
+Cabernet Sauvignon	White	341	341
+Merlot	Red	342	342
+Chardonnay	White	343	343
+Merlot	White	344	344
+Cabernet Sauvignon	White	345	345
+Chardonnay	Red	346	346
+Cabernet Sauvignon	Red	347	347
+Merlot	Red	348	348
+Cabernet Sauvignon	Red	349	349
+Cabernet Sauvignon	White	350	350
+Merlot	Red	351	351
+Cabernet Sauvignon	Red	352	352
+Cabernet Sauvignon	White	353	353
+Cabernet Sauvignon	White	354	354
+Chardonnay	Red	355	355
+Chardonnay	Red	356	356
+Chardonnay	Red	357	357
+Chardonnay	White	358	358
+Chardonnay	Red	359	359
+Cabernet Sauvignon	White	360	360
+Chardonnay	White	361	361
+Cabernet Sauvignon	Red	362	362
+Cabernet Sauvignon	White	363	363
+Merlot	White	364	364
+Chardonnay	White	365	365
+Cabernet Sauvignon	White	366	366
+Merlot	White	367	367
+Chardonnay	White	368	368
+Cabernet Sauvignon	White	369	369
+Chardonnay	Red	370	370
+Merlot	White	371	371
+Chardonnay	White	372	372
+Merlot	Red	373	373
+Chardonnay	Red	374	374
+Cabernet Sauvignon	Red	375	375
+Merlot	White	376	376
+Cabernet Sauvignon	White	377	377
+Chardonnay	White	378	378
+Merlot	White	379	379
+Cabernet Sauvignon	Red	380	380
+Merlot	Red	381	381
+Merlot	White	382	382
+Cabernet Sauvignon	White	383	383
+Chardonnay	Red	384	384
+Merlot	Red	385	385
+Chardonnay	White	386	386
+Cabernet Sauvignon	White	387	387
+Merlot	White	388	388
+Merlot	White	389	389
+Merlot	White	390	390
+Cabernet Sauvignon	Red	391	391
+Cabernet Sauvignon	Red	392	392
+Cabernet Sauvignon	Red	393	393
+Merlot	White	394	394
+Merlot	White	395	395
+Cabernet Sauvignon	Red	396	396
+Merlot	White	397	397
+Cabernet Sauvignon	White	398	398
+Chardonnay	White	399	399
+Merlot	White	400	400
+Chardonnay	Red	401	401
+Cabernet Sauvignon	Red	402	402
+Cabernet Sauvignon	White	403	403
+Cabernet Sauvignon	White	404	404
+Cabernet Sauvignon	White	405	405
+Chardonnay	White	406	406
+Chardonnay	Red	407	407
+Merlot	Red	408	408
+Cabernet Sauvignon	Red	409	409
+Chardonnay	Red	410	410
+Chardonnay	Red	411	411
+Merlot	Red	412	412
+Cabernet Sauvignon	White	413	413
+Merlot	Red	414	414
+Chardonnay	White	415	415
+Chardonnay	White	416	416
+Merlot	Red	417	417
+Chardonnay	White	418	418
+Cabernet Sauvignon	White	419	419
+Cabernet Sauvignon	White	420	420
+Merlot	Red	421	421
+Merlot	Red	422	422
+Chardonnay	White	423	423
+Merlot	Red	424	424
+Cabernet Sauvignon	Red	425	425
+Cabernet Sauvignon	Red	426	426
+Chardonnay	Red	427	427
+Cabernet Sauvignon	Red	428	428
+Merlot	Red	429	429
+Cabernet Sauvignon	Red	430	430
+Cabernet Sauvignon	Red	431	431
+Chardonnay	Red	432	432
+Cabernet Sauvignon	White	433	433
+Cabernet Sauvignon	White	434	434
+Cabernet Sauvignon	White	435	435
+Cabernet Sauvignon	Red	436	436
+Merlot	Red	437	437
+Chardonnay	White	438	438
+Merlot	Red	439	439
+Cabernet Sauvignon	Red	440	440
+Merlot	White	441	441
+Merlot	Red	442	442
+Merlot	Red	443	443
+Merlot	White	444	444
+Merlot	White	445	445
+Cabernet Sauvignon	White	446	446
+Chardonnay	White	447	447
+Cabernet Sauvignon	White	448	448
+Merlot	Red	449	449
+Chardonnay	White	450	450
+Chardonnay	White	451	451
+Cabernet Sauvignon	White	452	452
+Cabernet Sauvignon	Red	453	453
+Chardonnay	Red	454	454
+Chardonnay	White	455	455
+Cabernet Sauvignon	White	456	456
+Chardonnay	White	457	457
+Merlot	Red	458	458
+Merlot	White	459	459
+Merlot	White	460	460
+Chardonnay	White	461	461
+Cabernet Sauvignon	Red	462	462
+Cabernet Sauvignon	White	463	463
+Merlot	White	464	464
+Cabernet Sauvignon	Red	465	465
+Chardonnay	Red	466	466
+Cabernet Sauvignon	Red	467	467
+Merlot	White	468	468
+Chardonnay	White	469	469
+Merlot	White	470	470
+Merlot	Red	471	471
+Chardonnay	White	472	472
+Chardonnay	White	473	473
+Merlot	Red	474	474
+Chardonnay	White	475	475
+Merlot	Red	476	476
+Chardonnay	Red	477	477
+Cabernet Sauvignon	White	478	478
+Cabernet Sauvignon	Red	479	479
+Chardonnay	White	480	480
+Cabernet Sauvignon	White	481	481
+Chardonnay	Red	482	482
+Chardonnay	Red	483	483
+Chardonnay	White	484	484
+Chardonnay	White	485	485
+Chardonnay	White	486	486
+Merlot	White	487	487
+Merlot	White	488	488
+Chardonnay	Red	489	489
+Chardonnay	Red	490	490
+Cabernet Sauvignon	Red	491	491
+Cabernet Sauvignon	White	492	492
+Cabernet Sauvignon	Red	493	493
+Merlot	Red	494	494
+Merlot	White	495	495
+Cabernet Sauvignon	White	496	496
+Merlot	Red	497	497
+Merlot	White	498	498
+Chardonnay	White	499	499
+\.
+
+
+--
+-- TOC entry 3505 (class 0 OID 16394)
+-- Dependencies: 218
+-- Data for Name: harvest; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.harvest (harvest_id, harvest_date, quantity, inventory_id) FROM stdin;
+1	2025-01-01	50	1
+2	2025-01-10	60	2
+3	2025-02-01	70	3
+100	2023-04-25	53	726
+101	2023-04-26	400	295
+102	2023-04-27	427	444
+103	2023-04-28	219	492
+104	2023-04-29	153	181
+105	2023-04-30	326	757
+106	2023-05-01	319	691
+107	2023-05-02	26	710
+108	2023-05-03	428	290
+109	2023-05-04	217	419
+110	2023-05-05	419	176
+111	2023-05-06	473	827
+112	2023-05-07	130	767
+113	2023-05-08	349	708
+114	2023-05-09	291	409
+115	2023-05-10	465	418
+116	2023-05-11	419	319
+117	2023-05-12	498	990
+118	2023-05-13	10	828
+119	2023-05-14	122	638
+120	2023-05-15	356	890
+121	2023-05-16	59	888
+122	2023-05-17	464	835
+123	2023-05-18	225	510
+124	2023-05-19	172	553
+125	2023-05-20	222	722
+126	2023-05-21	51	600
+127	2023-05-22	127	564
+128	2023-05-23	475	310
+129	2023-05-24	54	805
+130	2023-05-25	434	378
+131	2023-05-26	157	966
+132	2023-05-27	94	441
+133	2023-05-28	349	661
+134	2023-05-29	423	769
+135	2023-05-30	479	244
+136	2023-05-31	293	742
+137	2023-06-01	87	853
+138	2023-06-02	252	236
+139	2023-06-03	336	467
+140	2023-06-04	204	699
+141	2023-06-05	397	575
+142	2023-06-06	188	201
+143	2023-06-07	151	672
+144	2023-06-08	193	449
+145	2023-06-09	107	522
+146	2023-06-10	308	106
+147	2023-06-11	472	957
+148	2023-06-12	85	560
+149	2023-06-13	492	101
+150	2023-06-14	368	882
+151	2023-06-15	461	141
+152	2023-06-16	57	602
+153	2023-06-17	299	372
+154	2023-06-18	444	320
+155	2023-06-19	445	625
+156	2023-06-20	222	311
+157	2023-06-21	41	951
+158	2023-06-22	162	306
+159	2023-06-23	180	351
+160	2023-06-24	432	841
+161	2023-06-25	303	649
+162	2023-06-26	93	519
+163	2023-06-27	430	203
+164	2023-06-28	185	895
+165	2023-06-29	149	308
+166	2023-06-30	221	382
+167	2023-07-01	113	793
+168	2023-07-02	59	735
+169	2023-07-03	484	558
+170	2023-07-04	160	901
+171	2023-07-05	479	798
+172	2023-07-06	399	728
+173	2023-07-07	274	152
+174	2023-07-08	287	803
+175	2023-07-09	7	959
+176	2023-07-10	15	277
+177	2023-07-11	78	916
+178	2023-07-12	25	998
+179	2023-07-13	135	296
+180	2023-07-14	64	127
+181	2023-07-15	90	859
+182	2023-07-16	151	601
+183	2023-07-17	77	789
+184	2023-07-18	475	499
+185	2023-07-19	265	598
+186	2023-07-20	25	678
+187	2023-07-21	205	570
+188	2023-07-22	265	887
+189	2023-07-23	263	132
+190	2023-07-24	37	646
+191	2023-07-25	348	934
+192	2023-07-26	214	869
+193	2023-07-27	348	263
+194	2023-07-28	16	504
+195	2023-07-29	116	173
+196	2023-07-30	421	569
+197	2023-07-31	170	898
+198	2023-08-01	42	200
+199	2023-08-02	227	939
+200	2023-08-03	381	655
+201	2023-08-04	371	591
+202	2023-08-05	155	225
+203	2023-08-06	418	745
+204	2023-08-07	234	538
+205	2023-08-08	410	375
+206	2023-08-09	389	610
+207	2023-08-10	419	587
+208	2023-08-11	320	140
+209	2023-08-12	357	179
+210	2023-08-13	404	677
+211	2023-08-14	414	845
+212	2023-08-15	113	162
+213	2023-08-16	233	155
+214	2023-08-17	139	496
+215	2023-08-18	67	207
+216	2023-08-19	221	495
+217	2023-08-20	213	809
+218	2023-08-21	162	941
+219	2023-08-22	249	285
+220	2023-08-23	69	478
+221	2023-08-24	396	322
+222	2023-08-25	496	746
+223	2023-08-26	223	549
+224	2023-08-27	99	440
+225	2023-08-28	150	788
+226	2023-08-29	151	450
+227	2023-08-30	285	366
+228	2023-08-31	318	713
+229	2023-09-01	129	960
+230	2023-09-02	172	362
+231	2023-09-03	330	837
+232	2023-09-04	73	174
+233	2023-09-05	453	550
+234	2023-09-06	130	844
+235	2023-09-07	252	487
+236	2023-09-08	153	252
+237	2023-09-09	255	592
+238	2023-09-10	58	832
+239	2023-09-11	24	192
+240	2023-09-12	258	185
+241	2023-09-13	314	294
+242	2023-09-14	387	653
+243	2023-09-15	387	369
+244	2023-09-16	458	307
+245	2023-09-17	305	909
+246	2023-09-18	97	982
+247	2023-09-19	365	482
+248	2023-09-20	286	711
+249	2023-09-21	134	287
+250	2023-09-22	309	279
+251	2023-09-23	464	751
+252	2023-09-24	199	438
+253	2023-09-25	130	205
+254	2023-09-26	311	973
+255	2023-09-27	234	889
+256	2023-09-28	145	470
+257	2023-09-29	121	997
+258	2023-09-30	201	123
+259	2023-10-01	318	879
+260	2023-10-02	149	509
+261	2023-10-03	76	360
+262	2023-10-04	236	782
+263	2023-10-05	56	582
+264	2023-10-06	113	724
+265	2023-10-07	464	249
+266	2023-10-08	364	160
+267	2023-10-09	129	534
+268	2023-10-10	35	170
+269	2023-10-11	487	243
+270	2023-10-12	35	902
+271	2023-10-13	489	293
+272	2023-10-14	483	619
+273	2023-10-15	446	848
+274	2023-10-16	231	704
+275	2023-10-17	228	477
+276	2023-10-18	77	984
+277	2023-10-19	447	404
+278	2023-10-20	295	824
+279	2023-10-21	147	475
+280	2023-10-22	474	261
+281	2023-10-23	383	380
+282	2023-10-24	103	391
+283	2023-10-25	499	508
+284	2023-10-26	263	364
+285	2023-10-27	408	622
+286	2023-10-28	480	428
+287	2023-10-29	53	271
+288	2023-10-30	186	135
+289	2023-10-31	155	734
+290	2023-11-01	380	138
+291	2023-11-02	106	639
+292	2023-11-03	485	386
+293	2023-11-04	160	427
+294	2023-11-05	162	194
+295	2023-11-06	51	856
+296	2023-11-07	219	120
+297	2023-11-08	238	694
+298	2023-11-09	195	866
+299	2023-11-10	341	621
+300	2023-11-11	51	664
+301	2023-11-12	124	298
+302	2023-11-13	149	954
+303	2023-11-14	241	924
+304	2023-11-15	486	452
+305	2023-11-16	259	259
+306	2023-11-17	30	634
+307	2023-11-18	63	834
+308	2023-11-19	27	802
+309	2023-11-20	460	334
+310	2023-11-21	50	918
+311	2023-11-22	352	613
+312	2023-11-23	355	707
+313	2023-11-24	319	932
+314	2023-11-25	164	608
+315	2023-11-26	489	139
+316	2023-11-27	313	896
+317	2023-11-28	272	626
+318	2023-11-29	192	215
+319	2023-11-30	23	883
+320	2023-12-01	28	453
+321	2023-12-02	77	851
+322	2023-12-03	37	594
+323	2023-12-04	499	206
+324	2023-12-05	69	574
+325	2023-12-06	103	674
+326	2023-12-07	392	262
+327	2023-12-08	90	413
+328	2023-12-09	218	868
+329	2023-12-10	179	513
+330	2023-12-11	256	280
+331	2023-12-12	228	905
+332	2023-12-13	438	617
+333	2023-12-14	377	247
+334	2023-12-15	131	972
+335	2023-12-16	224	880
+336	2023-12-17	400	930
+337	2023-12-18	78	867
+338	2023-12-19	373	657
+339	2023-12-20	57	612
+340	2023-12-21	388	609
+341	2023-12-22	294	239
+342	2023-12-23	195	810
+343	2023-12-24	212	647
+344	2023-12-25	76	772
+345	2023-12-26	420	157
+346	2023-12-27	496	565
+347	2023-12-28	249	460
+348	2023-12-29	368	727
+349	2023-12-30	25	472
+350	2023-12-31	408	629
+351	2024-01-01	417	537
+352	2024-01-02	201	822
+353	2024-01-03	351	544
+354	2024-01-04	44	886
+355	2024-01-05	98	705
+356	2024-01-06	369	551
+357	2024-01-07	329	264
+358	2024-01-08	70	473
+359	2024-01-09	311	660
+360	2024-01-10	200	946
+361	2024-01-11	309	167
+362	2024-01-12	446	233
+363	2024-01-13	258	823
+364	2024-01-14	79	402
+365	2024-01-15	56	588
+366	2024-01-16	243	325
+367	2024-01-17	235	528
+368	2024-01-18	438	770
+369	2024-01-19	314	126
+370	2024-01-20	42	435
+371	2024-01-21	79	580
+372	2024-01-22	423	922
+373	2024-01-23	460	969
+374	2024-01-24	316	673
+375	2024-01-25	359	328
+376	2024-01-26	416	241
+377	2024-01-27	210	315
+378	2024-01-28	80	145
+379	2024-01-29	379	288
+380	2024-01-30	459	669
+381	2024-01-31	467	945
+382	2024-02-01	81	222
+383	2024-02-02	88	936
+384	2024-02-03	256	333
+385	2024-02-04	8	919
+386	2024-02-05	416	197
+387	2024-02-06	276	507
+388	2024-02-07	95	641
+389	2024-02-08	123	151
+390	2024-02-09	93	128
+391	2024-02-10	359	633
+392	2024-02-11	78	899
+393	2024-02-12	348	137
+394	2024-02-13	434	451
+395	2024-02-14	64	631
+396	2024-02-15	299	566
+397	2024-02-16	286	368
+398	2024-02-17	393	717
+399	2024-02-18	402	923
+400	2024-02-19	89	395
+401	2024-02-20	55	684
+402	2024-02-21	174	420
+403	2024-02-22	170	956
+404	2024-02-23	70	968
+405	2024-02-24	437	218
+406	2024-02-25	249	377
+407	2024-02-26	20	783
+408	2024-02-27	464	353
+409	2024-02-28	34	130
+410	2024-02-29	384	393
+411	2024-03-01	154	826
+412	2024-03-02	341	214
+413	2024-03-03	42	637
+414	2024-03-04	476	559
+415	2024-03-05	233	336
+416	2024-03-06	402	749
+417	2024-03-07	192	762
+418	2024-03-08	358	318
+419	2024-03-09	426	817
+420	2024-03-10	120	251
+421	2024-03-11	219	871
+422	2024-03-12	212	985
+423	2024-03-13	41	585
+424	2024-03-14	291	112
+425	2024-03-15	293	210
+426	2024-03-16	500	893
+427	2024-03-17	300	693
+428	2024-03-18	403	948
+429	2024-03-19	161	406
+430	2024-03-20	92	976
+431	2024-03-21	185	552
+432	2024-03-22	245	818
+433	2024-03-23	14	671
+434	2024-03-24	5	396
+435	2024-03-25	191	978
+436	2024-03-26	466	855
+437	2024-03-27	69	773
+438	2024-03-28	416	714
+439	2024-03-29	206	136
+440	2024-03-30	279	394
+441	2024-03-31	389	297
+442	2024-04-01	462	874
+443	2024-04-02	9	567
+444	2024-04-03	49	191
+445	2024-04-04	353	268
+446	2024-04-05	249	217
+447	2024-04-06	450	607
+448	2024-04-07	315	756
+449	2024-04-08	316	423
+450	2024-04-09	299	852
+451	2024-04-10	376	209
+452	2024-04-11	203	344
+453	2024-04-12	374	389
+454	2024-04-13	116	935
+455	2024-04-14	340	376
+456	2024-04-15	261	993
+457	2024-04-16	384	358
+458	2024-04-17	349	630
+459	2024-04-18	56	403
+460	2024-04-19	169	159
+461	2024-04-20	332	147
+462	2024-04-21	407	131
+463	2024-04-22	59	232
+464	2024-04-23	359	346
+465	2024-04-24	474	385
+466	2024-04-25	158	747
+467	2024-04-26	87	305
+468	2024-04-27	405	555
+469	2024-04-28	198	292
+470	2024-04-29	121	719
+471	2024-04-30	481	573
+472	2024-05-01	89	723
+473	2024-05-02	425	620
+474	2024-05-03	360	690
+475	2024-05-04	489	576
+476	2024-05-05	397	831
+477	2024-05-06	56	666
+478	2024-05-07	377	589
+479	2024-05-08	316	989
+480	2024-05-09	51	615
+481	2024-05-10	277	479
+482	2024-05-11	217	938
+483	2024-05-12	485	685
+484	2024-05-13	462	175
+485	2024-05-14	483	799
+486	2024-05-15	69	455
+487	2024-05-16	280	632
+488	2024-05-17	131	659
+489	2024-05-18	23	248
+490	2024-05-19	254	367
+491	2024-05-20	84	643
+492	2024-05-21	449	754
+493	2024-05-22	397	257
+494	2024-05-23	478	996
+495	2024-05-24	49	408
+496	2024-05-25	54	457
+497	2024-05-26	39	665
+498	2024-05-27	257	524
+499	2024-05-28	29	283
+1000	2024-10-02	\N	\N
+1001	2024-12-13	\N	\N
+1002	2024-11-08	\N	\N
+1003	2025-02-26	\N	\N
+1004	2025-03-12	\N	\N
+1005	2024-05-31	\N	\N
+1006	2024-10-31	\N	\N
+1007	2025-01-20	\N	\N
+1008	2024-07-26	\N	\N
+\.
+
+
+--
+-- TOC entry 3506 (class 0 OID 16397)
+-- Dependencies: 219
+-- Data for Name: inventory; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.inventory (expiration_date, inventory_id, inventory_quantity, date_of_receipt) FROM stdin;
+2025-06-01	641	1045	2024-02-07
+2025-01-28	724	1510	2023-10-06
+2025-06-07	451	1914	2024-02-13
+2025-04-21	460	1435	2023-12-28
+2025-03-06	298	1685	2023-11-12
+2025-04-22	727	2234	2023-12-29
+2025-02-06	848	2146	2023-10-15
+2025-05-07	823	1727	2024-01-13
+2024-11-26	591	2584	2023-08-04
+2025-01-24	509	1633	2023-10-02
+2024-11-11	678	872	2023-07-20
+2025-06-21	353	1930	2024-02-27
+2025-06-17	968	1234	2024-02-23
+2024-10-26	901	1415	2023-07-04
+2025-04-28	886	620	2024-01-04
+2025-07-07	112	1878	2024-03-14
+2024-09-06	890	1998	2023-05-15
+2025-04-20	565	2101	2023-12-27
+2025-04-26	822	1115	2024-01-02
+2024-12-03	140	1408	2023-08-11
+2025-01-22	123	1368	2023-09-30
+2025-04-30	551	1716	2024-01-06
+2025-05-25	945	2209	2024-01-31
+2025-06-30	762	815	2024-03-07
+2025-06-11	717	2119	2024-02-17
+2025-06-20	783	794	2024-02-26
+2025-05-22	145	1334	2024-01-28
+2025-06-02	151	1099	2024-02-08
+2025-07-14	552	1832	2024-03-21
+2025-02-15	391	1162	2023-10-24
+2025-02-03	902	559	2023-10-12
+2025-03-20	139	2396	2023-11-26
+2024-10-25	558	2818	2023-07-03
+2024-11-12	570	1749	2023-07-21
+2024-09-07	888	550	2023-05-16
+2025-05-26	222	368	2024-02-01
+2025-02-13	261	2874	2023-10-22
+2025-04-27	544	2453	2024-01-03
+2025-01-07	369	1688	2023-09-15
+2024-12-26	837	1705	2023-09-03
+2025-04-17	647	1440	2023-12-24
+2025-02-02	243	2700	2023-10-11
+2025-06-28	336	961	2024-03-05
+2024-09-17	966	1017	2023-05-26
+2025-03-19	608	1100	2023-11-25
+2025-06-13	395	1029	2024-02-19
+2025-06-27	559	1941	2024-03-04
+2025-06-25	214	1390	2024-03-02
+2024-10-02	106	2145	2023-06-10
+2025-04-13	612	1397	2023-12-20
+2025-03-24	883	134	2023-11-30
+2025-05-01	264	2085	2024-01-07
+2025-02-27	194	796	2023-11-05
+2025-01-06	653	2190	2023-09-14
+2024-11-30	375	2254	2023-08-08
+2024-12-08	155	1482	2023-08-16
+2025-04-16	810	1207	2023-12-23
+2025-07-11	948	1891	2024-03-18
+2024-08-21	181	1019	2023-04-29
+2025-07-01	318	2614	2024-03-08
+2025-05-27	936	1337	2024-02-02
+2024-12-18	549	1871	2023-08-26
+2025-01-19	889	1769	2023-09-27
+2024-12-20	788	1517	2023-08-28
+2025-04-02	868	1482	2023-12-09
+2024-08-29	767	882	2023-05-07
+2024-08-30	708	2525	2023-05-08
+2024-10-22	382	1267	2023-06-30
+2025-06-03	128	1333	2024-02-09
+2024-10-08	602	991	2023-06-16
+2024-08-23	691	1578	2023-05-01
+2025-02-26	427	1676	2023-11-04
+2024-11-20	173	870	2023-07-29
+2025-03-17	707	2490	2023-11-23
+2025-03-05	664	924	2023-11-11
+2025-04-07	247	2257	2023-12-14
+2025-01-18	973	1398	2023-09-26
+2024-11-18	263	2395	2023-07-27
+2025-01-15	751	2166	2023-09-23
+2025-02-01	170	618	2023-10-10
+2024-10-12	311	2057	2023-06-20
+2024-11-29	538	1834	2023-08-07
+2025-04-25	537	2110	2024-01-01
+2025-06-16	956	958	2024-02-22
+2025-05-18	673	1714	2024-01-24
+2025-05-15	580	1044	2024-01-21
+2024-10-20	895	1095	2023-06-28
+2025-06-09	566	1945	2024-02-15
+2025-04-14	609	1585	2023-12-21
+2025-05-24	669	2534	2024-01-30
+2025-05-04	946	1855	2024-01-10
+2025-03-31	262	2132	2023-12-07
+2024-12-09	496	700	2023-08-17
+2025-06-12	923	2594	2024-02-18
+2025-06-06	137	1847	2024-02-12
+2025-05-03	660	1707	2024-01-09
+2025-03-22	626	1239	2023-11-28
+2024-10-04	560	1193	2023-06-12
+2025-07-02	817	1722	2024-03-09
+2024-11-22	898	1294	2023-07-31
+2024-12-22	366	1227	2023-08-30
+2024-09-29	672	1542	2023-06-07
+2024-09-14	310	2511	2023-05-23
+2024-09-16	378	2292	2023-05-25
+2024-12-17	746	2980	2023-08-25
+2025-03-14	334	2135	2023-11-20
+2024-09-30	449	1042	2023-06-08
+2025-05-29	919	826	2024-02-04
+2024-12-01	610	1575	2023-08-09
+2025-01-23	879	2087	2023-10-01
+2025-04-15	239	2119	2023-12-22
+2025-01-01	592	1963	2023-09-09
+2024-08-31	409	1907	2023-05-09
+2025-05-10	325	1020	2024-01-16
+2024-09-25	467	1963	2023-06-03
+2025-03-23	215	1553	2023-11-29
+2025-07-03	251	1464	2024-03-10
+2024-09-15	805	403	2023-05-24
+2024-09-05	638	885	2023-05-14
+2025-01-08	307	2665	2023-09-16
+2024-10-01	522	1416	2023-06-09
+2025-05-08	402	833	2024-01-14
+2025-04-24	629	1754	2023-12-31
+2024-11-25	655	1894	2023-08-03
+2024-10-10	320	2876	2023-06-18
+2025-01-13	287	1048	2023-09-21
+2024-09-13	564	923	2023-05-22
+2025-03-16	613	2358	2023-11-22
+2024-12-07	162	1556	2023-08-15
+2024-08-17	726	860	2023-04-25
+2025-06-23	393	2101	2024-02-29
+2024-12-13	941	1718	2023-08-21
+2025-05-23	288	2603	2024-01-29
+2024-11-10	598	2174	2023-07-19
+2025-06-14	684	1071	2024-02-20
+2025-02-16	508	2458	2023-10-25
+2025-02-04	293	2597	2023-10-13
+2024-10-15	351	1308	2023-06-23
+2025-01-21	997	1593	2023-09-29
+2024-10-18	519	1360	2023-06-26
+2025-03-12	834	967	2023-11-18
+2025-04-01	413	1553	2023-12-08
+2024-11-21	569	2404	2023-07-30
+2024-08-19	444	2321	2023-04-27
+2024-09-11	722	1403	2023-05-20
+2025-01-04	185	1430	2023-09-12
+2025-03-02	694	1530	2023-11-08
+2025-03-10	259	1902	2023-11-16
+2024-12-06	845	2713	2023-08-14
+2025-06-04	633	1978	2024-02-10
+2024-10-27	798	2749	2023-07-05
+2024-09-12	600	504	2023-05-21
+2024-12-05	677	2563	2023-08-13
+2024-09-24	236	1705	2023-06-02
+2024-11-08	789	942	2023-07-17
+2024-10-17	649	1350	2023-06-25
+2025-01-05	294	1436	2023-09-13
+2024-12-31	252	1752	2023-09-08
+2024-11-06	859	425	2023-07-15
+2024-11-13	887	1223	2023-07-22
+2024-09-19	661	2097	2023-05-28
+2024-12-02	587	2800	2023-08-10
+2024-08-28	827	2584	2023-05-06
+2025-12-31	1	170	2025-01-01
+2025-11-30	2	300	2025-01-10
+2026-01-15	3	250	2025-02-01
+2024-12-29	844	1604	2023-09-06
+2024-11-09	499	2826	2023-07-18
+2024-10-14	306	1650	2023-06-22
+2024-10-28	728	2704	2023-07-06
+2024-12-23	713	1513	2023-08-31
+2024-12-15	478	1051	2023-08-23
+2024-08-24	710	902	2023-05-02
+2024-11-28	745	2619	2023-08-06
+2024-10-30	803	1284	2023-07-08
+2024-09-10	553	920	2023-05-19
+2024-11-04	296	642	2023-07-13
+2024-11-15	646	848	2023-07-24
+2024-08-22	757	2322	2023-04-30
+2024-12-27	174	1263	2023-09-04
+2024-10-09	372	1378	2023-06-17
+2024-09-04	828	253	2023-05-13
+2024-08-26	419	1278	2023-05-04
+2024-09-22	742	2146	2023-05-31
+2024-10-13	951	462	2023-06-21
+2024-10-31	959	133	2023-07-09
+2024-11-01	277	557	2023-07-10
+2024-11-03	998	380	2023-07-12
+2024-11-19	504	724	2023-07-28
+2025-03-26	851	1141	2023-12-02
+2024-11-05	127	782	2023-07-14
+2025-06-24	826	956	2024-03-01
+2024-12-14	285	2095	2023-08-22
+2024-09-09	510	1940	2023-05-18
+2025-02-05	619	2870	2023-10-14
+2025-01-29	249	2340	2023-10-07
+2024-12-25	362	1332	2023-09-02
+2024-10-24	735	656	2023-07-02
+2025-02-24	639	464	2023-11-02
+2024-11-27	225	1102	2023-08-05
+2025-04-18	772	605	2023-12-25
+2024-09-08	835	2359	2023-05-17
+2025-05-16	922	1997	2024-01-22
+2025-06-29	749	1631	2024-03-06
+2025-03-11	634	901	2023-11-17
+2025-02-10	404	1899	2023-10-19
+2024-12-12	809	1518	2023-08-20
+2025-03-18	932	2226	2023-11-24
+2025-03-21	896	1833	2023-11-27
+2025-07-08	210	1869	2024-03-15
+2025-01-30	160	1943	2023-10-08
+2025-02-07	704	1237	2023-10-16
+2024-09-23	853	514	2023-06-01
+2025-04-11	867	378	2023-12-18
+2024-10-19	203	2876	2023-06-27
+2025-05-05	167	1915	2024-01-11
+2024-10-29	152	1401	2023-07-07
+2025-07-10	693	1916	2024-03-17
+2025-05-12	770	2177	2024-01-18
+2024-09-21	244	2256	2023-05-30
+2025-04-06	617	2082	2023-12-13
+2024-09-03	990	2322	2023-05-12
+2025-07-09	893	2285	2024-03-16
+2024-11-14	132	1569	2023-07-23
+2024-08-20	492	1882	2023-04-28
+2025-05-20	241	2211	2024-01-26
+2024-11-23	200	800	2023-08-01
+2025-04-12	657	2566	2023-12-19
+2025-05-19	328	2557	2024-01-25
+2025-07-13	976	616	2024-03-20
+2024-09-02	319	2440	2023-05-11
+2024-11-24	939	1228	2023-08-02
+2025-06-10	368	1344	2024-02-16
+2025-05-13	126	2116	2024-01-19
+2025-01-02	832	1314	2023-09-10
+2025-03-03	866	1082	2023-11-09
+2025-03-09	452	2332	2023-11-15
+2025-01-31	534	1013	2023-10-09
+2024-10-11	625	2588	2023-06-19
+2025-04-10	930	1886	2023-12-17
+2024-10-07	141	2929	2023-06-15
+2024-10-23	793	608	2023-07-01
+2024-08-27	176	1810	2023-05-05
+2025-03-07	954	657	2023-11-13
+2024-11-16	934	2201	2023-07-25
+2025-01-27	582	1110	2023-10-05
+2025-05-28	333	1608	2024-02-03
+2025-01-10	982	1251	2023-09-18
+2025-01-20	470	766	2023-09-28
+2024-12-21	450	900	2023-08-29
+2025-03-04	621	1994	2023-11-10
+2025-02-22	734	1075	2023-10-31
+2025-02-11	824	1944	2023-10-20
+2025-02-28	856	1274	2023-11-06
+2025-06-18	218	2552	2024-02-24
+2025-01-25	360	630	2023-10-03
+2025-04-08	972	835	2023-12-15
+2025-01-26	782	1929	2023-10-04
+2025-01-17	205	552	2023-09-25
+2025-05-09	588	874	2024-01-15
+2025-01-16	438	1700	2023-09-24
+2025-07-05	985	1911	2024-03-12
+2025-03-29	574	667	2023-12-05
+2025-02-18	622	2212	2023-10-27
+2025-02-20	271	1401	2023-10-29
+2025-02-17	364	1666	2023-10-26
+2025-02-12	475	1630	2023-10-21
+2025-05-31	507	1722	2024-02-06
+2025-04-23	472	282	2023-12-30
+2025-03-13	802	300	2023-11-19
+2025-03-15	918	632	2023-11-21
+2025-03-25	453	1144	2023-12-01
+2025-03-27	594	703	2023-12-03
+2025-06-22	130	971	2024-02-28
+2025-06-26	637	247	2024-03-03
+2025-07-06	585	1129	2024-03-13
+2025-07-16	671	25	2024-03-23
+2025-04-03	513	1695	2023-12-10
+2025-03-28	206	2386	2023-12-04
+2025-02-08	477	1607	2023-10-17
+2025-01-09	909	1696	2023-09-17
+2025-04-05	905	1324	2023-12-12
+2024-10-03	957	1941	2023-06-11
+2024-12-10	207	838	2023-08-18
+2024-12-28	550	1898	2023-09-05
+2024-12-04	179	1600	2023-08-12
+2025-03-01	120	2015	2023-11-07
+2025-01-12	711	1941	2023-09-20
+2024-09-20	769	2636	2023-05-29
+2025-02-14	380	2222	2023-10-23
+2024-09-28	201	954	2023-06-06
+2025-07-04	871	993	2024-03-11
+2025-05-17	969	2646	2024-01-23
+2025-05-11	528	1842	2024-01-17
+2025-02-21	135	1555	2023-10-30
+2025-05-06	233	2828	2024-01-12
+2025-06-15	420	1721	2024-02-21
+2024-10-21	308	1687	2023-06-29
+2025-02-25	386	2614	2023-11-03
+2024-09-27	575	2422	2023-06-05
+2025-06-05	899	1148	2024-02-11
+2024-12-19	440	572	2023-08-27
+2025-04-09	880	986	2023-12-16
+2024-08-25	290	2653	2023-05-03
+2024-09-18	441	540	2023-05-27
+2024-11-02	916	1427	2023-07-11
+2024-11-07	601	1373	2023-07-16
+2024-12-11	495	1086	2023-08-19
+2025-07-12	406	681	2024-03-19
+2025-07-15	818	1538	2024-03-22
+2025-06-19	377	1681	2024-02-25
+2024-10-05	101	2190	2023-06-13
+2025-02-23	138	2157	2023-11-01
+2024-09-01	418	2446	2023-05-10
+2025-05-30	197	2750	2024-02-05
+2024-12-30	487	1943	2023-09-07
+2024-08-18	295	2495	2023-04-26
+2025-01-03	192	227	2023-09-11
+2025-03-08	924	1834	2023-11-14
+2024-12-16	322	1661	2023-08-24
+2025-04-19	157	1847	2023-12-26
+2025-04-29	705	1442	2024-01-05
+2025-05-14	435	824	2024-01-20
+2024-11-17	869	952	2023-07-26
+2024-09-26	699	1434	2023-06-04
+2025-05-02	473	1463	2024-01-08
+2024-10-16	841	2920	2023-06-24
+2025-02-09	984	836	2023-10-18
+2025-06-08	631	468	2024-02-14
+2025-01-14	279	1909	2023-09-22
+2024-10-06	882	2594	2023-06-14
+2025-04-04	280	1791	2023-12-11
+2024-12-24	960	964	2023-09-01
+2025-05-21	315	888	2024-01-27
+2025-02-19	428	2423	2023-10-28
+2025-03-30	674	1556	2023-12-06
+2025-01-11	482	2635	2023-09-19
+2025-07-17	396	349	2024-03-24
+2025-07-26	567	906	2024-04-02
+2025-07-27	191	1178	2024-04-03
+2025-09-10	248	643	2024-05-18
+2025-09-20	283	557	2024-05-28
+2025-08-18	747	1160	2024-04-25
+2025-09-18	665	528	2024-05-26
+2025-08-26	690	2498	2024-05-03
+2025-08-04	344	1509	2024-04-11
+2025-08-11	403	708	2024-04-18
+2025-08-02	852	1732	2024-04-09
+2025-07-23	394	1868	2024-03-30
+2025-08-17	385	2570	2024-04-24
+2025-08-16	346	1740	2024-04-23
+2025-08-24	723	957	2024-05-01
+2025-08-25	620	2628	2024-05-02
+2025-07-25	874	2376	2024-04-01
+2025-08-29	666	422	2024-05-06
+2025-07-19	855	2167	2024-03-26
+2025-09-04	685	2914	2024-05-12
+2025-08-31	989	1835	2024-05-08
+2025-09-14	257	1876	2024-05-22
+2025-09-13	754	2637	2024-05-21
+2025-09-16	408	348	2024-05-24
+2025-08-30	589	2529	2024-05-07
+2025-08-28	831	2619	2024-05-05
+2025-09-03	938	927	2024-05-11
+2025-08-10	630	1782	2024-04-17
+2025-08-01	423	1483	2024-04-08
+2025-08-13	147	2330	2024-04-20
+2025-09-11	367	2146	2024-05-19
+2025-07-22	136	1218	2024-03-29
+2025-08-20	555	1775	2024-04-27
+2025-09-02	479	1922	2024-05-10
+2025-09-01	615	1099	2024-05-09
+2025-08-14	131	2150	2024-04-21
+2025-09-12	643	1045	2024-05-20
+2025-08-03	209	1593	2024-04-10
+2025-07-21	714	2644	2024-03-28
+2025-08-05	389	2329	2024-04-12
+2025-09-17	457	983	2024-05-25
+2025-09-05	175	2269	2024-05-13
+2025-07-29	217	1344	2024-04-05
+2025-07-18	978	826	2024-03-25
+2025-09-08	632	1653	2024-05-16
+2025-08-15	232	1389	2024-04-22
+2025-07-20	773	746	2024-03-27
+2025-08-07	376	1847	2024-04-14
+2025-07-24	297	1699	2024-03-31
+2025-09-09	659	1143	2024-05-17
+2025-08-23	573	2678	2024-04-30
+2025-09-06	799	2718	2024-05-14
+2025-08-27	576	3146	2024-05-04
+2025-08-21	292	1793	2024-04-28
+2025-09-19	524	1467	2024-05-27
+2025-07-31	756	2354	2024-04-07
+2025-09-07	455	1236	2024-05-15
+2025-08-09	358	1913	2024-04-16
+2025-08-22	719	1572	2024-04-29
+2025-08-08	993	1392	2024-04-15
+2025-08-06	935	968	2024-04-13
+2025-07-30	607	1950	2024-04-06
+2025-07-28	268	2541	2024-04-04
+2025-08-12	159	1098	2024-04-19
+2025-09-15	996	1989	2024-05-23
+2025-08-19	305	656	2024-04-26
+\.
+
+
+--
+-- TOC entry 3521 (class 0 OID 32975)
+-- Dependencies: 235
+-- Data for Name: inventory_process; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.inventory_process (inventory_id, processid) FROM stdin;
+106	10
+112	11
+120	12
+123	13
+126	14
+127	15
+128	16
+130	17
+131	18
+132	19
+135	20
+136	21
+137	22
+138	23
+139	24
+140	25
+141	26
+145	27
+147	28
+151	29
+152	30
+155	31
+157	32
+159	33
+160	34
+162	35
+167	36
+170	37
+173	38
+174	39
+175	40
+176	41
+179	42
+181	43
+185	44
+191	45
+192	46
+194	47
+197	48
+200	49
+201	50
+203	51
+205	52
+206	53
+207	54
+209	55
+210	56
+214	57
+215	58
+217	59
+218	60
+222	61
+225	62
+\.
+
+
+--
+-- TOC entry 3507 (class 0 OID 16400)
+-- Dependencies: 220
+-- Data for Name: maintenace; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.maintenace (task_id, task_type, m_date, worker_id) FROM stdin;
+1	Management	2025-02-10	1
+2	Harvesting	2025-03-15	2
+3	Planting	2025-04-05	3
+100	maintenace	2025-01-20	369
+101	Harvesting	2025-12-03	629
+102	Planting	2025-08-29	641
+103	maintenace	2025-01-30	492
+104	maintenace	2025-05-05	465
+105	Planting	2025-05-16	148
+106	maintenace	2025-11-09	933
+107	maintenace	2025-06-10	866
+108	Harvesting	2025-03-12	349
+109	maintenace	2025-03-30	950
+110	maintenace	2025-06-07	425
+111	Harvesting	2025-01-16	143
+112	Planting	2025-05-21	256
+113	maintenace	2025-02-01	908
+114	Planting	2025-12-28	659
+115	Planting	2025-08-22	787
+116	Harvesting	2025-09-10	175
+117	maintenace	2025-01-13	998
+118	Planting	2025-06-12	510
+119	Planting	2025-05-08	908
+120	Planting	2025-05-26	463
+121	maintenace	2025-01-15	519
+122	Harvesting	2025-09-19	783
+123	Harvesting	2025-08-30	999
+124	maintenace	2025-06-26	933
+125	Harvesting	2025-07-24	366
+126	Harvesting	2025-02-18	965
+127	maintenace	2025-08-28	352
+128	Planting	2025-01-20	130
+129	Harvesting	2025-04-05	294
+130	maintenace	2025-09-25	539
+131	maintenace	2025-09-18	130
+132	Harvesting	2025-07-22	599
+133	Harvesting	2025-02-16	908
+134	Harvesting	2025-12-24	813
+135	Planting	2025-12-29	823
+136	maintenace	2025-02-12	253
+137	maintenace	2025-08-07	418
+138	Planting	2025-02-13	936
+139	Harvesting	2025-03-06	343
+140	Planting	2025-11-04	543
+141	Planting	2025-06-12	491
+142	Harvesting	2025-01-24	813
+143	Harvesting	2025-09-28	865
+144	maintenace	2025-08-15	581
+145	maintenace	2025-02-17	319
+146	Harvesting	2025-05-22	444
+147	Planting	2025-05-03	816
+148	Planting	2025-06-26	154
+149	Planting	2025-02-21	220
+150	Harvesting	2025-09-01	532
+151	maintenace	2025-01-23	226
+152	Harvesting	2025-03-14	921
+153	Harvesting	2025-01-12	520
+154	Harvesting	2025-01-19	599
+155	Planting	2025-06-17	706
+156	Planting	2025-06-03	761
+157	Harvesting	2025-08-28	596
+158	maintenace	2025-05-06	509
+159	Harvesting	2025-10-10	755
+160	Planting	2025-01-17	889
+161	Planting	2025-08-01	523
+162	maintenace	2025-04-26	746
+163	Planting	2025-12-23	633
+164	Harvesting	2025-04-10	491
+165	Harvesting	2025-05-19	883
+166	Planting	2025-09-12	736
+167	Planting	2025-09-16	218
+168	Planting	2025-06-10	447
+169	Planting	2025-08-07	225
+170	Planting	2025-09-01	904
+171	Harvesting	2025-10-01	298
+172	Planting	2025-11-02	966
+173	maintenace	2025-05-09	332
+174	Planting	2025-08-28	507
+175	Harvesting	2025-08-14	209
+176	maintenace	2025-08-29	255
+177	Planting	2025-11-30	648
+178	Planting	2025-10-15	401
+179	maintenace	2025-08-03	293
+180	Planting	2025-05-19	904
+181	Harvesting	2025-12-22	290
+182	maintenace	2025-06-12	203
+183	maintenace	2025-08-30	220
+184	Planting	2025-02-17	998
+185	Harvesting	2025-12-26	350
+186	maintenace	2025-05-24	352
+187	maintenace	2025-02-13	348
+188	Harvesting	2025-09-03	255
+189	Planting	2025-08-20	279
+190	Planting	2025-10-17	694
+191	Planting	2025-11-03	984
+192	Planting	2025-06-10	295
+193	maintenace	2025-01-21	395
+194	maintenace	2025-11-04	734
+195	Planting	2025-08-08	555
+196	maintenace	2025-04-08	527
+197	Harvesting	2025-12-07	494
+198	Harvesting	2025-05-12	146
+199	maintenace	2025-05-01	778
+200	Planting	2025-04-02	323
+201	Harvesting	2025-09-07	243
+202	Planting	2025-07-26	847
+203	Planting	2025-12-18	762
+204	Harvesting	2025-03-23	511
+205	Harvesting	2025-02-03	324
+206	Harvesting	2025-05-02	570
+207	Planting	2025-10-06	151
+208	maintenace	2025-03-16	350
+209	Planting	2025-10-25	741
+210	maintenace	2025-10-27	217
+211	Planting	2025-11-22	847
+212	maintenace	2025-03-20	124
+213	Planting	2025-10-25	161
+214	Harvesting	2025-05-18	618
+215	Harvesting	2025-11-05	747
+216	Harvesting	2025-11-30	708
+217	Harvesting	2025-12-27	803
+218	Planting	2025-04-29	771
+219	Planting	2025-05-06	984
+220	Harvesting	2025-01-10	540
+221	maintenace	2025-11-21	915
+222	Planting	2025-03-09	507
+223	Harvesting	2025-07-01	447
+224	maintenace	2025-09-03	407
+225	maintenace	2025-01-22	746
+226	Planting	2025-09-30	714
+227	Harvesting	2025-12-11	511
+228	Harvesting	2025-02-17	654
+229	Harvesting	2025-12-17	558
+230	Planting	2025-01-15	300
+231	Planting	2025-03-02	817
+232	Harvesting	2025-08-19	963
+233	Planting	2025-06-05	823
+234	maintenace	2025-01-06	582
+235	Harvesting	2025-08-26	944
+236	Harvesting	2025-12-25	483
+237	Planting	2025-06-23	966
+238	Planting	2025-07-03	690
+239	maintenace	2025-11-08	369
+240	Harvesting	2025-05-06	481
+241	Harvesting	2025-08-26	768
+242	Planting	2025-05-24	220
+243	maintenace	2025-12-28	893
+244	maintenace	2025-09-13	828
+245	Planting	2025-08-12	838
+246	Harvesting	2025-01-27	547
+247	Planting	2025-08-21	796
+248	maintenace	2025-04-02	291
+249	maintenace	2025-07-19	253
+250	Harvesting	2025-10-08	948
+251	Harvesting	2025-01-15	657
+252	Harvesting	2025-07-23	318
+253	maintenace	2025-12-15	593
+254	Planting	2025-05-14	243
+255	Harvesting	2025-03-28	534
+256	maintenace	2025-07-22	418
+257	maintenace	2025-12-25	695
+258	maintenace	2025-01-16	585
+259	Planting	2025-07-12	271
+260	Harvesting	2025-11-06	582
+261	Planting	2025-04-11	457
+262	maintenace	2025-04-11	737
+263	maintenace	2025-11-15	656
+264	maintenace	2025-06-17	408
+265	Planting	2025-03-18	463
+266	maintenace	2025-12-09	341
+267	Planting	2025-05-15	463
+268	Planting	2025-01-13	444
+269	maintenace	2025-08-24	722
+270	Harvesting	2025-05-22	839
+271	Harvesting	2025-12-25	507
+272	Harvesting	2025-02-07	730
+273	Harvesting	2025-03-09	779
+274	Harvesting	2025-12-06	127
+275	maintenace	2025-04-03	706
+276	Planting	2025-09-24	889
+277	Harvesting	2025-08-10	681
+278	maintenace	2025-08-15	460
+279	maintenace	2025-08-28	281
+280	Harvesting	2025-11-30	834
+281	maintenace	2025-01-31	242
+282	Harvesting	2025-12-02	899
+283	Planting	2025-12-15	499
+284	maintenace	2025-08-12	118
+285	maintenace	2025-04-28	967
+286	Harvesting	2025-08-06	348
+287	maintenace	2025-07-08	722
+288	Harvesting	2025-03-28	904
+289	Harvesting	2025-09-08	298
+290	Planting	2025-07-25	543
+291	maintenace	2025-10-11	389
+292	Harvesting	2025-10-10	132
+293	Planting	2025-08-09	582
+294	Planting	2025-02-15	577
+295	maintenace	2025-05-10	332
+296	Harvesting	2025-03-04	874
+297	Harvesting	2025-10-08	549
+298	maintenace	2025-09-20	492
+299	maintenace	2025-01-27	501
+300	Harvesting	2025-09-24	622
+301	maintenace	2025-09-24	209
+302	maintenace	2025-10-18	225
+303	Planting	2025-03-05	103
+304	Planting	2025-10-03	547
+305	maintenace	2025-12-07	624
+306	maintenace	2025-07-15	527
+307	maintenace	2025-07-29	652
+308	maintenace	2025-04-01	428
+309	Planting	2025-01-22	444
+310	Planting	2025-06-22	786
+311	maintenace	2025-03-05	315
+312	Harvesting	2025-06-17	540
+313	maintenace	2025-09-25	585
+314	Harvesting	2025-04-16	482
+315	maintenace	2025-04-13	799
+316	maintenace	2025-01-12	460
+317	Planting	2025-11-08	540
+318	Planting	2025-01-19	430
+319	Harvesting	2025-05-01	411
+320	Harvesting	2025-09-10	481
+321	maintenace	2025-09-08	717
+322	maintenace	2025-09-30	832
+323	Planting	2025-09-07	782
+324	Planting	2025-02-28	223
+325	Harvesting	2025-03-20	240
+326	Harvesting	2025-12-26	295
+327	Harvesting	2025-12-15	308
+328	Planting	2025-04-02	654
+329	Planting	2025-10-29	999
+330	maintenace	2025-10-08	979
+331	maintenace	2025-05-26	519
+332	Planting	2025-10-13	243
+333	maintenace	2025-05-16	600
+334	Harvesting	2025-05-13	460
+335	maintenace	2025-01-23	268
+336	Planting	2025-10-08	387
+337	Harvesting	2025-09-13	482
+338	maintenace	2025-02-14	670
+339	Planting	2025-03-08	979
+340	maintenace	2025-11-17	587
+341	Harvesting	2025-01-18	367
+342	Harvesting	2025-07-18	889
+343	Planting	2025-05-03	218
+344	Harvesting	2025-11-18	206
+345	Harvesting	2025-03-25	407
+346	Harvesting	2025-01-04	654
+347	Harvesting	2025-02-03	656
+348	Planting	2025-02-06	279
+349	maintenace	2025-01-24	224
+350	maintenace	2025-01-29	430
+351	Harvesting	2025-04-14	559
+352	Planting	2025-01-16	948
+353	Harvesting	2025-02-22	585
+354	maintenace	2025-05-16	582
+355	maintenace	2025-11-16	363
+356	maintenace	2025-01-30	510
+357	Planting	2025-01-29	786
+358	Planting	2025-11-14	251
+359	Planting	2025-01-08	543
+360	Planting	2025-10-17	268
+361	Planting	2025-01-27	114
+362	Harvesting	2025-10-22	735
+363	Harvesting	2025-02-02	681
+364	Harvesting	2025-05-30	491
+365	maintenace	2025-11-04	255
+366	Planting	2025-05-29	536
+367	maintenace	2025-07-04	396
+368	maintenace	2025-02-09	874
+369	maintenace	2025-03-27	114
+370	maintenace	2025-09-30	163
+371	Harvesting	2025-01-28	998
+372	Harvesting	2025-05-06	527
+373	Planting	2025-11-08	865
+374	Planting	2025-02-02	729
+375	maintenace	2025-08-13	534
+376	maintenace	2025-05-15	391
+377	maintenace	2025-11-17	311
+378	Harvesting	2025-08-10	149
+379	Planting	2025-02-22	594
+380	Planting	2025-01-13	269
+381	maintenace	2025-09-11	457
+382	maintenace	2025-06-08	367
+383	maintenace	2025-05-30	431
+384	Harvesting	2025-07-09	971
+385	Planting	2025-08-14	966
+386	maintenace	2025-03-05	114
+387	Harvesting	2025-12-28	523
+388	Planting	2025-03-20	390
+389	Harvesting	2025-03-14	335
+390	maintenace	2025-02-04	220
+391	Harvesting	2025-09-20	513
+392	Planting	2025-07-22	926
+393	maintenace	2025-07-04	447
+394	maintenace	2025-12-09	834
+395	Harvesting	2025-09-30	114
+396	Harvesting	2025-04-26	290
+397	Harvesting	2025-05-23	647
+398	Harvesting	2025-06-15	115
+399	Harvesting	2025-01-08	143
+400	maintenace	2025-12-02	874
+401	Planting	2025-03-13	738
+402	Planting	2025-05-27	746
+403	Planting	2025-10-12	390
+404	Harvesting	2025-09-02	796
+405	Planting	2025-10-10	405
+406	maintenace	2025-02-06	780
+407	Harvesting	2025-06-21	371
+408	Planting	2025-10-03	198
+409	Harvesting	2025-05-09	196
+410	maintenace	2025-07-04	556
+411	maintenace	2025-12-31	966
+412	maintenace	2025-03-31	383
+413	Planting	2025-07-10	612
+414	maintenace	2025-05-21	963
+415	maintenace	2025-10-04	823
+416	maintenace	2025-09-21	694
+417	maintenace	2025-04-22	734
+418	Harvesting	2025-12-13	553
+419	Planting	2025-04-18	218
+420	Harvesting	2025-02-25	392
+421	Planting	2025-05-29	612
+422	Planting	2025-04-12	271
+423	Harvesting	2025-02-05	149
+424	Harvesting	2025-09-14	171
+425	maintenace	2025-05-01	408
+426	maintenace	2025-10-08	190
+427	Planting	2025-08-17	996
+428	maintenace	2025-05-16	813
+429	Harvesting	2025-08-03	107
+430	maintenace	2025-07-03	804
+431	Planting	2025-08-06	692
+432	Planting	2025-12-08	736
+433	Harvesting	2025-02-19	858
+434	maintenace	2025-08-21	269
+435	Planting	2025-04-30	149
+436	Planting	2025-05-01	747
+437	maintenace	2025-09-05	127
+438	Harvesting	2025-12-26	884
+439	Planting	2025-03-10	493
+440	Harvesting	2025-04-30	592
+441	maintenace	2025-12-17	513
+442	Planting	2025-05-06	659
+443	Planting	2025-07-11	668
+444	Harvesting	2025-03-01	120
+445	Planting	2025-08-10	396
+446	Planting	2025-02-02	582
+447	maintenace	2025-02-23	596
+448	Planting	2025-08-05	540
+449	Planting	2025-10-31	656
+450	maintenace	2025-11-10	326
+451	Planting	2025-05-18	501
+452	maintenace	2025-03-10	292
+453	Planting	2025-01-03	865
+454	maintenace	2025-08-26	492
+455	Planting	2025-09-26	680
+456	Planting	2025-06-28	220
+457	maintenace	2025-03-10	950
+458	Planting	2025-01-13	593
+459	Planting	2025-10-20	120
+460	maintenace	2025-05-24	575
+461	Harvesting	2025-12-30	418
+462	maintenace	2025-04-12	258
+463	maintenace	2025-04-24	847
+464	Harvesting	2025-10-27	508
+465	Planting	2025-03-04	305
+466	Harvesting	2025-06-04	557
+467	Planting	2025-01-13	161
+468	maintenace	2025-05-06	681
+469	Harvesting	2025-10-25	507
+470	Planting	2025-01-23	269
+471	Harvesting	2025-02-06	482
+472	Harvesting	2025-03-17	908
+473	Planting	2025-09-29	648
+474	Harvesting	2025-10-10	387
+475	Harvesting	2025-04-12	817
+476	maintenace	2025-03-12	594
+477	Planting	2025-03-31	391
+478	Planting	2025-01-20	288
+479	Planting	2025-08-28	494
+480	maintenace	2025-06-09	218
+481	Harvesting	2025-09-18	784
+482	Harvesting	2025-05-29	321
+483	maintenace	2025-01-10	392
+484	maintenace	2025-02-02	735
+485	Planting	2025-10-25	944
+486	Harvesting	2025-05-19	725
+487	Harvesting	2025-10-21	107
+488	Planting	2025-07-16	124
+489	Harvesting	2025-04-23	235
+490	Harvesting	2025-01-12	228
+491	Harvesting	2025-04-30	966
+492	Planting	2025-04-28	383
+493	Planting	2025-05-06	612
+494	Harvesting	2025-03-29	199
+495	Harvesting	2025-03-25	892
+496	maintenace	2025-08-09	222
+497	Harvesting	2025-07-10	791
+498	maintenace	2025-07-26	792
+499	maintenace	2025-02-02	667
+\.
+
+
+--
+-- TOC entry 3515 (class 0 OID 32882)
+-- Dependencies: 229
+-- Data for Name: materials_; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.materials_ (materialid_, name_, supplierid_, quantityavailable_) FROM stdin;
+8	acid	953896930	-6083.24
+7	sorbate\t	974486834	-4559.96
+10	gloves	987389467	-7279.5599999999995
+9	filter	144301605	-5331.29
+1	bottle\t	981402913	-4733.8099999999995
+5	rinse\t	361346674	-7279.9
+4	cleaner\t	829758960	-5083.83
+2	cork\t	208634251	-3887.2799999999997
+6	yeast	880133468	-5397.68
+3	label\t	572814245	-6228.59
+\.
+
+
+--
+-- TOC entry 3508 (class 0 OID 16405)
+-- Dependencies: 221
+-- Data for Name: perform; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.perform (worker_id, harvest_id) FROM stdin;
+1	1
+2	2
+3	3
+183	439
+199	171
+209	468
+513	299
+955	126
+453	289
+966	278
+489	295
+253	356
+148	381
+724	405
+432	261
+817	210
+605	138
+291	334
+903	262
+887	481
+149	253
+400	365
+298	252
+804	183
+594	161
+408	422
+488	324
+255	241
+558	285
+940	480
+444	287
+367	462
+630	284
+655	236
+690	279
+137	387
+261	181
+728	349
+900	491
+549	451
+355	417
+806	188
+317	133
+326	207
+575	111
+616	438
+220	234
+167	184
+383	158
+224	172
+171	398
+998	228
+136	407
+784	220
+593	203
+815	378
+308	453
+948	389
+656	431
+501	282
+196	174
+893	496
+882	484
+430	270
+156	388
+910	264
+667	394
+333	446
+132	124
+839	435
+771	179
+470	487
+854	347
+641	301
+786	190
+862	105
+268	232
+746	348
+555	273
+307	463
+332	153
+908	109
+587	437
+780	363
+349	136
+483	201
+325	260
+782	186
+536	146
+686	339
+519	319
+305	357
+950	294
+935	242
+763	205
+295	213
+258	342
+936	428
+457	104
+846	455
+203	418
+872	383
+787	223
+540	255
+556	225
+951	328
+534	112
+809	113
+341	166
+741	390
+835	152
+692	106
+999	293
+761	195
+226	312
+652	300
+300	333
+324	441
+779	254
+866	193
+304	251
+618	488
+581	268
+495	156
+822	204
+963	471
+392	351
+507	403
+163	485
+318	374
+191	371
+461	164
+114	396
+803	340
+666	380
+431	360
+742	326
+588	214
+234	475
+856	399
+228	393
+352	359
+747	317
+386	148
+930	419
+238	197
+765	227
+813	143
+279	128
+412	130
+884	222
+943	309
+961	144
+874	469
+678	385
+933	498
+532	206
+768	259
+762	341
+429	237
+642	448
+143	114
+251	366
+991	139
+527	318
+151	486
+633	420
+319	129
+315	119
+311	244
+721	145
+256	364
+222	350
+484	200
+543	457
+335	408
+271	404
+926	170
+834	354
+857	424
+624	120
+135	346
+520	352
+816	208
+714	258
+493	470
+385	315
+395	169
+272	187
+292	121
+958	382
+354	280
+860	353
+523	243
+996	231
+567	456
+554	343
+370	269
+735	454
+243	415
+600	131
+396	314
+115	447
+293	400
+465	414
+828	412
+851	445
+585	154
+989	249
+570	127
+657	311
+418	212
+832	100
+103	410
+967	218
+482	460
+528	379
+511	185
+598	401
+607	283
+405	494
+198	467
+130	271
+337	466
+363	159
+190	257
+717	162
+294	307
+492	497
+547	327
+499	196
+145	474
+122	102
+915	452
+401	125
+510	240
+883	297
+346	459
+411	305
+700	450
+612	211
+615	391
+571	321
+654	180
+321	411
+964	219
+201	123
+212	272
+889	440
+557	265
+356	230
+416	168
+376	291
+288	202
+711	344
+407	465
+217	122
+708	372
+979	416
+343	306
+799	464
+342	277
+290	472
+968	217
+730	313
+371	316
+107	473
+505	425
+218	266
+673	442
+384	274
+223	137
+648	337
+263	163
+124	361
+216	173
+647	427
+847	368
+159	477
+160	135
+944	332
+206	117
+240	436
+553	426
+100	483
+486	189
+225	103
+670	376
+387	198
+118	338
+481	375
+971	430
+962	116
+425	199
+892	479
+858	397
+734	369
+494	238
+592	298
+582	304
+984	267
+265	155
+375	336
+694	151
+722	167
+865	110
+838	302
+345	191
+559	263
+428	384
+390	246
+517	256
+599	226
+800	329
+736	323
+849	275
+146	245
+281	493
+899	331
+269	492
+602	147
+102	215
+725	233
+460	209
+566	296
+276	248
+403	134
+577	281
+235	142
+798	421
+154	495
+603	373
+691	367
+941	288
+604	362
+904	478
+663	402
+684	165
+649	292
+423	141
+120	392
+161	224
+675	335
+242	476
+681	482
+965	108
+207	132
+369	177
+389	458
+755	182
+823	216
+796	429
+778	432
+785	406
+175	149
+668	290
+497	115
+350	449
+627	386
+539	235
+629	101
+729	239
+508	303
+738	221
+596	345
+792	461
+706	355
+737	490
+565	370
+366	192
+622	140
+509	358
+873	160
+314	276
+680	395
+280	250
+529	150
+530	330
+413	229
+323	377
+127	286
+538	325
+348	247
+\.
+
+
+--
+-- TOC entry 3516 (class 0 OID 32885)
+-- Dependencies: 230
+-- Data for Name: process_equipment; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.process_equipment (equipmentid_, processid_) FROM stdin;
+21	202
+18	31
+36	89
+23	233
+5	341
+5	270
+22	53
+10	400
+18	369
+4	107
+15	393
+1	17
+26	150
+36	287
+21	70
+1	147
+13	220
+33	39
+33	275
+36	56
+8	71
+1	315
+3	359
+21	40
+39	205
+12	151
+39	341
+21	339
+24	183
+26	374
+16	377
+17	299
+31	284
+16	396
+23	223
+28	323
+28	215
+4	12
+14	88
+4	185
+37	388
+6	249
+13	145
+39	342
+21	367
+6	253
+6	389
+35	220
+8	11
+22	393
+30	261
+40	26
+34	159
+4	315
+2	239
+17	104
+18	348
+29	168
+35	312
+2	340
+19	15
+29	288
+1	112
+37	182
+11	352
+28	80
+1	345
+7	151
+15	148
+5	30
+30	47
+22	59
+31	209
+40	133
+6	343
+25	385
+40	324
+8	392
+22	79
+15	277
+40	212
+36	134
+33	233
+18	376
+10	343
+14	319
+5	164
+16	73
+27	155
+5	225
+40	43
+31	245
+26	299
+38	15
+34	385
+5	135
+1	164
+38	100
+37	159
+25	358
+14	72
+33	294
+1	314
+23	141
+28	164
+32	177
+11	111
+22	199
+6	286
+28	47
+20	282
+29	180
+11	92
+26	174
+36	85
+30	84
+10	173
+13	121
+13	366
+11	194
+7	18
+23	109
+30	358
+12	18
+7	107
+30	330
+30	323
+7	231
+5	326
+18	127
+35	23
+10	189
+33	7
+9	263
+38	385
+26	46
+28	267
+32	327
+39	51
+14	352
+32	381
+22	305
+12	375
+8	197
+16	7
+30	77
+19	236
+32	394
+37	29
+10	371
+5	171
+30	179
+14	250
+12	144
+37	382
+33	212
+20	108
+33	319
+6	107
+1	78
+7	82
+20	219
+11	49
+32	66
+10	17
+26	131
+6	180
+16	305
+5	252
+10	331
+31	300
+7	164
+40	65
+32	395
+16	334
+2	59
+13	15
+18	315
+33	46
+36	183
+39	49
+26	260
+6	372
+1	335
+37	321
+7	156
+38	43
+39	303
+37	289
+22	12
+35	260
+1	323
+16	186
+10	351
+34	143
+36	130
+36	244
+19	341
+26	78
+24	1
+38	94
+33	246
+4	137
+34	329
+37	396
+28	129
+10	289
+20	136
+11	36
+20	126
+28	303
+8	96
+10	288
+34	269
+12	378
+4	318
+22	138
+11	358
+7	217
+35	193
+37	32
+3	272
+8	88
+26	90
+15	30
+25	318
+33	215
+23	391
+22	169
+28	291
+39	48
+31	398
+23	305
+25	178
+11	367
+22	85
+20	28
+12	183
+2	37
+29	212
+22	120
+5	28
+21	400
+37	49
+27	353
+12	172
+32	80
+29	202
+16	250
+28	93
+15	243
+38	276
+39	236
+1	397
+35	97
+6	268
+18	1
+23	56
+32	316
+31	290
+16	146
+27	109
+14	207
+36	45
+31	279
+10	231
+2	352
+4	183
+20	66
+38	50
+15	307
+3	151
+28	125
+8	335
+32	69
+18	34
+32	297
+24	274
+26	58
+39	232
+13	10
+10	156
+30	286
+20	322
+31	258
+8	176
+28	236
+5	245
+39	234
+17	237
+12	208
+16	107
+9	280
+24	380
+9	307
+37	36
+24	288
+10	175
+36	254
+5	52
+26	82
+14	194
+6	338
+28	10
+28	130
+27	65
+4	265
+27	227
+37	371
+32	204
+38	152
+8	182
+33	102
+39	130
+2	78
+8	165
+10	102
+33	241
+18	196
+1	81
+17	375
+13	31
+13	232
+8	302
+19	35
+13	70
+22	77
+11	6
+17	258
+25	292
+4	83
+2	357
+27	204
+7	71
+21	35
+26	16
+33	207
+33	217
+14	224
+7	297
+10	386
+25	153
+17	388
+24	353
+39	163
+23	207
+15	97
+38	89
+10	66
+17	115
+9	376
+31	19
+13	206
+24	315
+19	107
+10	87
+34	123
+38	211
+33	56
+10	240
+40	218
+35	314
+20	133
+15	186
+36	11
+13	358
+34	82
+28	124
+31	233
+37	130
+13	23
+20	22
+20	364
+29	228
+32	337
+11	135
+4	152
+8	203
+27	49
+2	381
+10	236
+7	86
+24	56
+10	40
+29	123
+17	75
+20	257
+29	241
+37	184
+28	112
+9	258
+34	394
+8	206
+30	383
+19	378
+34	190
+31	66
+12	33
+30	304
+29	198
+28	92
+40	77
+25	27
+4	234
+15	183
+37	235
+12	311
+38	261
+1	103
+34	181
+18	234
+13	348
+32	128
+26	49
+19	380
+14	356
+38	79
+17	43
+3	143
+35	147
+14	304
+14	331
+18	190
+36	345
+4	39
+27	317
+12	145
+12	129
+6	33
+26	189
+15	176
+37	230
+38	206
+2	308
+19	222
+17	123
+7	240
+31	309
+18	336
+22	118
+8	363
+14	179
+35	219
+37	61
+14	158
+5	260
+22	351
+14	285
+29	154
+20	369
+33	81
+17	327
+17	44
+23	243
+6	174
+13	172
+30	187
+1	41
+24	41
+27	189
+15	297
+24	47
+21	24
+25	189
+2	379
+7	228
+28	254
+18	238
+28	210
+14	132
+16	32
+3	119
+28	72
+19	104
+22	191
+1	232
+35	389
+39	318
+32	59
+6	153
+18	239
+19	391
+36	69
+3	324
+30	390
+5	63
+16	157
+14	166
+30	207
+28	224
+36	80
+27	12
+34	271
+32	84
+17	254
+34	240
+39	168
+31	11
+36	120
+20	384
+23	338
+32	57
+14	3
+33	175
+18	29
+10	315
+16	75
+35	211
+11	52
+15	273
+25	396
+18	320
+11	226
+17	55
+36	378
+35	119
+38	330
+18	284
+8	385
+39	350
+28	279
+31	232
+19	144
+5	238
+6	342
+36	250
+17	231
+12	242
+16	251
+17	294
+21	178
+21	198
+21	174
+9	287
+11	200
+27	362
+36	23
+14	144
+2	344
+28	54
+4	384
+8	390
+35	264
+16	116
+3	369
+4	202
+36	174
+17	89
+34	66
+25	155
+28	149
+37	183
+20	395
+7	246
+19	266
+1	231
+35	235
+18	160
+25	341
+7	208
+37	245
+25	293
+35	307
+12	289
+23	10
+7	274
+15	385
+35	73
+36	20
+37	249
+31	212
+12	22
+25	281
+30	131
+6	12
+14	385
+4	59
+13	29
+16	97
+37	210
+32	305
+10	228
+14	270
+5	376
+40	277
+28	208
+19	345
+40	233
+22	109
+4	136
+15	296
+17	366
+24	271
+30	329
+9	327
+4	294
+19	248
+35	357
+37	158
+3	397
+20	200
+35	139
+37	65
+27	278
+11	124
+2	125
+7	234
+13	323
+1	122
+9	121
+23	151
+15	256
+35	198
+25	11
+11	337
+20	152
+32	338
+9	128
+31	23
+11	343
+32	379
+35	356
+27	200
+26	306
+40	226
+32	249
+25	360
+16	196
+32	7
+25	133
+29	389
+33	153
+24	26
+24	202
+21	306
+14	139
+13	100
+11	334
+31	49
+9	28
+33	156
+25	121
+26	56
+36	9
+22	29
+36	138
+13	364
+4	197
+33	186
+14	286
+29	30
+18	208
+39	327
+19	240
+19	180
+25	336
+39	20
+23	41
+7	161
+2	235
+4	84
+25	55
+10	328
+37	313
+7	77
+14	113
+4	212
+26	339
+4	264
+12	381
+31	365
+36	109
+6	344
+20	99
+25	398
+13	228
+16	312
+9	82
+3	116
+15	9
+38	130
+27	241
+16	399
+3	296
+15	191
+30	23
+14	83
+9	25
+5	102
+2	79
+6	159
+30	198
+36	266
+25	236
+29	117
+4	352
+27	377
+23	55
+8	139
+33	281
+35	255
+14	90
+3	367
+33	21
+29	116
+30	107
+26	356
+12	100
+9	99
+24	220
+18	79
+4	191
+22	310
+1	268
+12	3
+40	69
+4	45
+25	33
+7	222
+20	189
+31	308
+14	87
+37	216
+10	31
+28	397
+24	341
+36	74
+29	94
+7	38
+11	3
+5	11
+19	127
+8	186
+16	171
+36	26
+28	263
+40	200
+38	172
+40	301
+7	35
+29	178
+11	363
+5	295
+21	253
+7	196
+16	363
+9	70
+27	222
+11	182
+5	133
+10	77
+14	129
+13	327
+14	203
+35	92
+32	247
+10	339
+8	386
+15	92
+9	255
+1	235
+4	80
+20	229
+25	339
+12	245
+9	1
+27	55
+24	141
+10	170
+9	368
+12	373
+5	72
+28	299
+21	199
+5	142
+5	370
+3	10
+39	31
+20	14
+20	54
+2	38
+18	47
+7	172
+17	278
+34	399
+23	383
+36	171
+36	370
+22	336
+12	200
+3	314
+25	57
+18	274
+20	177
+32	269
+40	156
+38	278
+36	331
+38	160
+21	289
+22	58
+4	93
+26	393
+27	375
+9	326
+18	35
+18	301
+23	5
+10	61
+36	356
+17	280
+40	337
+14	333
+5	256
+3	239
+21	226
+29	190
+10	116
+19	29
+17	34
+2	50
+12	30
+15	293
+5	330
+23	187
+11	66
+28	43
+32	217
+26	320
+36	297
+26	297
+19	300
+18	192
+4	393
+38	59
+33	109
+17	196
+38	32
+4	229
+19	304
+37	149
+17	395
+18	294
+35	85
+24	258
+10	185
+33	237
+9	298
+31	318
+12	67
+33	184
+24	338
+34	280
+22	181
+17	192
+36	224
+19	114
+36	381
+20	223
+3	232
+19	305
+2	345
+35	341
+21	144
+21	348
+36	352
+33	91
+34	276
+28	127
+5	233
+12	156
+19	80
+9	159
+27	98
+35	295
+10	98
+4	251
+13	252
+23	186
+38	273
+30	393
+22	371
+3	85
+24	79
+38	372
+9	345
+20	164
+8	111
+20	263
+32	151
+39	287
+15	254
+6	59
+29	71
+31	196
+13	279
+31	114
+20	64
+5	150
+34	374
+13	149
+16	21
+7	327
+7	97
+35	146
+30	140
+14	330
+32	107
+23	280
+37	45
+9	117
+16	285
+1	283
+5	399
+27	64
+23	327
+24	106
+13	21
+40	222
+23	176
+15	224
+15	20
+39	133
+36	365
+36	93
+32	203
+36	233
+36	384
+40	374
+1	249
+7	272
+39	260
+18	199
+10	89
+34	120
+7	176
+6	150
+35	5
+18	128
+4	23
+22	388
+11	210
+16	235
+38	394
+30	13
+38	316
+17	167
+40	67
+1	327
+5	241
+36	315
+22	370
+16	231
+14	398
+35	176
+14	339
+10	182
+26	244
+40	184
+23	167
+12	275
+33	269
+7	139
+3	260
+26	110
+35	106
+16	382
+25	80
+19	330
+5	194
+32	330
+15	187
+17	16
+29	346
+40	244
+9	142
+40	335
+25	276
+37	377
+29	295
+28	313
+23	333
+2	83
+24	131
+32	5
+31	264
+32	86
+22	229
+30	95
+22	47
+20	261
+23	26
+17	198
+6	86
+35	315
+9	102
+19	322
+34	28
+32	52
+14	16
+100	100
+100	101
+100	397
+100	398
+101	101
+101	100
+101	102
+102	101
+102	100
+\.
+
+
+--
+-- TOC entry 3517 (class 0 OID 32888)
+-- Dependencies: 231
+-- Data for Name: process_materials; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.process_materials (usageamount, processid_, materialid_) FROM stdin;
+77	226	2
+75	368	9
+34	171	4
+15	235	6
+26	295	3
+7	10	5
+91	53	6
+43	361	10
+12	188	6
+14	342	5
+56	145	5
+20	167	9
+85	92	6
+83	396	10
+50	159	7
+85	353	2
+30	149	4
+44	99	5
+31	151	5
+59	137	2
+61	174	9
+59	102	8
+53	192	10
+34	239	3
+31	288	10
+21	181	9
+98	348	3
+75	346	7
+50	109	7
+22	303	3
+6	352	1
+89	261	9
+28	292	2
+97	44	3
+56	280	1
+20	242	2
+9	3	9
+79	288	4
+35	204	6
+93	166	10
+38	290	5
+4	116	9
+50	166	4
+19	246	4
+82	190	9
+46	156	1
+92	331	1
+45	39	1
+18	259	5
+74	360	10
+23	379	9
+41	218	8
+25	307	6
+88	180	1
+58	97	7
+15	41	1
+14	301	9
+21	370	3
+2	121	1
+27	301	7
+36	289	10
+71	26	3
+100	28	2
+67	79	10
+25	180	7
+15	33	9
+56	235	5
+66	62	9
+31	30	3
+22	388	6
+47	165	7
+7	149	6
+99	308	5
+19	32	9
+66	45	6
+29	143	9
+84	332	8
+81	62	7
+41	329	2
+66	160	4
+54	284	2
+28	249	9
+96	170	7
+18	390	10
+37	210	3
+86	283	1
+50	83	6
+57	156	10
+12	215	7
+88	393	3
+41	61	3
+9	254	5
+3	373	6
+30	30	2
+73	9	5
+4	67	7
+67	230	10
+52	82	4
+37	398	5
+21	269	6
+93	231	7
+75	324	10
+100	269	8
+61	380	5
+54	353	8
+61	339	4
+28	174	3
+100	194	3
+100	96	1
+58	374	8
+80	25	1
+23	207	2
+79	173	1
+35	148	1
+63	342	4
+71	277	10
+28	52	3
+45	42	4
+29	383	9
+12	113	6
+14	256	8
+76	371	2
+31	199	1
+9	276	8
+75	73	2
+37	391	10
+70	374	6
+90	334	6
+77	367	10
+80	343	3
+69	74	5
+53	242	6
+64	168	2
+38	304	5
+47	298	7
+1	297	9
+59	217	2
+72	321	4
+77	6	4
+26	158	9
+33	232	5
+52	213	8
+1	144	7
+67	386	3
+54	95	1
+57	191	3
+45	85	3
+2	6	3
+97	290	4
+26	344	7
+31	137	6
+17	260	6
+8	210	6
+84	238	8
+37	336	4
+96	224	8
+58	395	8
+74	46	10
+91	339	5
+35	21	10
+15	339	8
+96	196	10
+5	34	8
+16	25	7
+64	318	2
+64	293	6
+99	193	3
+98	122	6
+63	108	10
+83	215	9
+62	95	10
+79	60	5
+5	228	2
+38	172	7
+84	262	5
+78	314	2
+20	41	2
+47	39	10
+98	233	5
+39	144	8
+11	182	5
+60	253	5
+74	165	4
+45	268	2
+86	294	3
+22	271	2
+92	368	1
+73	235	10
+19	302	6
+50	255	8
+57	167	7
+6	141	4
+95	231	6
+10	297	1
+78	285	10
+60	367	5
+32	211	8
+71	339	9
+83	203	8
+38	61	7
+38	268	6
+18	281	3
+44	272	6
+18	328	9
+51	239	8
+93	33	3
+45	305	7
+50	61	4
+52	362	8
+38	341	5
+90	317	8
+58	140	10
+97	102	5
+50	37	7
+25	294	4
+91	37	6
+82	280	8
+38	239	6
+66	253	8
+76	85	4
+21	307	10
+29	126	7
+9	262	10
+36	33	5
+30	377	10
+66	141	6
+10	338	9
+4	127	3
+41	120	4
+2	292	7
+4	221	6
+98	212	9
+30	11	10
+33	152	1
+92	7	9
+87	143	7
+63	383	7
+5	242	5
+38	226	5
+82	29	10
+93	32	1
+18	262	4
+33	154	5
+24	391	5
+28	31	2
+80	44	4
+83	259	8
+76	375	3
+72	151	9
+44	232	1
+5	290	9
+85	397	10
+68	129	5
+95	81	5
+95	366	5
+100	336	2
+87	223	9
+64	16	10
+38	287	7
+96	354	1
+45	257	2
+39	66	8
+21	324	3
+74	207	7
+34	147	10
+10	223	7
+100	260	3
+68	274	10
+82	3	8
+15	255	1
+39	140	5
+56	326	4
+33	37	9
+49	278	2
+16	322	5
+49	26	4
+30	351	5
+59	379	5
+51	295	10
+9	257	5
+81	172	3
+92	203	9
+96	166	5
+100	111	4
+85	254	2
+73	279	10
+93	284	8
+28	250	1
+79	86	6
+36	296	8
+79	147	3
+69	266	10
+19	146	2
+76	130	9
+99	165	8
+2	240	8
+8	330	9
+51	107	1
+84	29	1
+32	328	6
+57	65	3
+86	13	7
+13	106	9
+53	123	10
+53	172	6
+1	386	8
+11	233	7
+38	219	10
+14	127	7
+89	304	4
+14	324	7
+25	212	5
+98	231	5
+1	327	9
+22	157	10
+48	40	5
+49	393	9
+19	130	6
+73	217	4
+50	257	10
+99	163	3
+17	104	10
+37	84	5
+60	155	6
+2	260	5
+71	262	6
+62	128	5
+4	137	10
+73	139	7
+29	233	3
+19	55	1
+52	230	9
+26	381	4
+54	171	8
+40	226	8
+60	154	8
+88	55	7
+10	303	8
+45	133	3
+41	254	3
+11	236	9
+42	25	2
+35	376	9
+91	264	7
+72	183	10
+1	356	5
+59	304	3
+39	174	1
+54	115	6
+94	314	4
+15	37	3
+33	161	2
+68	54	5
+64	277	9
+47	162	4
+61	158	1
+53	288	2
+41	287	10
+54	125	2
+37	183	6
+6	342	2
+77	91	10
+57	256	5
+1	78	7
+33	328	10
+18	295	1
+1	139	5
+66	359	1
+87	301	1
+65	341	8
+28	298	4
+15	400	3
+17	366	6
+72	218	9
+18	214	10
+66	112	4
+5	116	5
+44	75	9
+47	239	9
+56	224	3
+70	367	3
+43	115	9
+73	347	1
+79	127	6
+38	283	8
+16	118	10
+15	222	1
+95	372	1
+98	52	8
+12	357	1
+1	187	1
+7	75	4
+82	370	8
+56	43	6
+80	372	5
+2	318	5
+34	345	10
+80	224	4
+95	311	5
+77	340	7
+\.
+
+
+--
+-- TOC entry 3518 (class 0 OID 32891)
+-- Dependencies: 232
+-- Data for Name: processcontainers; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.processcontainers (containerid_, processid_) FROM stdin;
+370	215
+226	302
+176	5
+137	370
+52	287
+323	316
+399	200
+378	211
+340	251
+290	343
+389	219
+218	2
+366	314
+124	125
+82	373
+51	332
+246	298
+12	146
+104	140
+136	369
+117	272
+93	130
+253	141
+377	190
+141	212
+103	215
+339	88
+306	349
+394	63
+105	392
+54	334
+135	20
+90	296
+252	329
+2	83
+249	391
+122	243
+254	17
+139	234
+322	220
+245	233
+351	301
+130	379
+95	223
+158	218
+317	120
+341	363
+310	392
+58	50
+39	69
+382	41
+325	148
+97	341
+208	255
+399	150
+278	368
+99	352
+37	84
+6	30
+93	239
+32	123
+210	58
+257	142
+338	4
+203	327
+174	147
+41	68
+66	158
+317	194
+88	76
+300	352
+191	67
+265	265
+68	112
+274	277
+347	269
+84	379
+320	164
+306	285
+386	50
+52	118
+259	73
+127	135
+54	358
+380	262
+282	311
+351	275
+161	110
+382	171
+317	95
+296	4
+351	315
+336	340
+229	7
+398	143
+382	132
+171	267
+281	207
+236	143
+95	258
+161	302
+342	198
+394	230
+147	164
+65	337
+396	46
+72	162
+109	219
+35	212
+205	36
+394	366
+136	76
+118	348
+237	311
+376	336
+18	116
+52	1
+175	14
+66	21
+342	352
+164	135
+269	15
+241	378
+62	47
+198	15
+267	287
+352	115
+358	160
+209	239
+240	223
+42	162
+397	47
+251	48
+211	125
+146	18
+89	138
+86	301
+94	393
+96	128
+127	361
+121	63
+294	212
+96	151
+392	67
+15	34
+279	35
+334	249
+316	174
+315	2
+337	345
+385	7
+1	214
+97	228
+67	76
+6	77
+279	179
+369	40
+333	375
+139	132
+310	150
+132	360
+149	324
+147	330
+228	345
+155	304
+113	268
+364	31
+390	276
+396	71
+203	246
+79	329
+219	36
+300	111
+275	324
+394	155
+61	176
+261	82
+304	364
+348	80
+107	96
+316	239
+18	155
+17	106
+278	108
+365	289
+188	311
+180	378
+342	26
+157	268
+131	228
+398	343
+361	53
+116	225
+178	31
+274	157
+254	220
+250	76
+129	204
+2	96
+353	335
+398	248
+26	12
+222	226
+182	116
+65	237
+21	226
+387	393
+296	72
+108	157
+167	272
+191	7
+389	340
+299	23
+118	242
+393	110
+48	148
+46	304
+11	311
+313	209
+70	261
+43	124
+184	260
+394	8
+100	308
+279	315
+107	128
+53	97
+164	341
+342	51
+387	198
+252	354
+266	48
+363	209
+166	358
+363	85
+263	169
+54	260
+209	341
+36	110
+293	378
+270	49
+54	185
+257	277
+85	102
+36	19
+114	150
+277	152
+180	215
+89	256
+375	32
+44	31
+392	293
+388	273
+183	342
+263	188
+10	375
+355	300
+334	1
+302	297
+262	283
+388	379
+136	261
+363	283
+271	277
+26	54
+317	112
+389	368
+52	262
+322	21
+159	344
+273	211
+133	74
+381	299
+237	138
+207	389
+370	222
+69	203
+76	111
+263	92
+299	387
+211	47
+330	147
+279	369
+265	212
+20	312
+212	1
+372	384
+157	108
+46	254
+185	229
+76	237
+345	322
+336	209
+161	291
+382	381
+219	93
+121	142
+92	346
+36	279
+68	20
+185	305
+139	84
+57	179
+105	100
+264	145
+185	221
+37	171
+50	316
+61	229
+83	167
+396	299
+130	74
+285	75
+321	183
+60	132
+396	368
+285	230
+17	309
+397	334
+22	375
+313	85
+95	86
+109	168
+369	81
+96	62
+103	359
+157	284
+105	183
+240	129
+148	19
+325	157
+380	64
+270	297
+320	254
+346	154
+347	182
+68	274
+305	250
+323	293
+112	394
+167	260
+320	81
+138	35
+67	101
+204	363
+312	309
+316	58
+312	28
+7	326
+163	98
+183	202
+192	245
+242	320
+109	138
+129	189
+188	306
+108	97
+245	226
+358	257
+317	60
+386	395
+191	287
+169	371
+222	338
+7	2
+306	135
+399	191
+324	339
+268	53
+255	355
+139	144
+85	235
+232	193
+163	268
+240	292
+93	139
+268	306
+17	165
+348	216
+51	160
+237	123
+238	277
+146	292
+364	25
+32	144
+189	252
+303	271
+160	226
+175	188
+367	234
+103	263
+324	155
+363	357
+142	372
+212	162
+71	315
+182	280
+274	175
+266	342
+190	247
+213	62
+112	373
+89	357
+111	94
+200	171
+288	195
+122	349
+377	250
+384	388
+137	106
+305	116
+167	56
+126	241
+310	390
+192	382
+388	165
+38	281
+391	247
+308	190
+297	221
+117	349
+202	22
+140	56
+287	254
+95	72
+62	29
+86	74
+31	94
+45	147
+19	10
+376	14
+112	332
+348	146
+81	153
+378	214
+249	96
+399	236
+149	136
+126	133
+342	217
+305	47
+325	91
+285	266
+132	269
+38	280
+12	240
+251	157
+168	374
+63	315
+221	59
+184	245
+49	283
+169	298
+396	292
+400	112
+288	119
+246	95
+346	317
+163	205
+50	42
+22	82
+232	258
+114	175
+341	375
+241	382
+250	40
+280	208
+180	229
+315	388
+29	230
+157	223
+270	241
+68	109
+43	22
+228	195
+241	165
+351	283
+30	103
+328	379
+265	365
+244	44
+50	359
+98	324
+3	296
+194	45
+8	291
+23	72
+144	132
+192	147
+311	109
+274	358
+368	284
+143	34
+377	109
+197	217
+286	36
+59	232
+317	90
+270	308
+167	25
+67	149
+208	252
+112	167
+58	78
+230	72
+54	112
+260	48
+276	235
+288	40
+58	345
+274	325
+271	84
+326	398
+328	100
+273	43
+301	146
+373	163
+195	26
+130	352
+377	360
+267	283
+309	389
+137	278
+212	98
+3	345
+158	213
+281	102
+75	212
+292	67
+101	195
+331	329
+247	179
+297	400
+391	176
+206	87
+48	398
+317	365
+174	6
+2	232
+363	163
+346	126
+96	60
+354	162
+231	282
+46	225
+380	353
+238	190
+379	314
+317	122
+270	178
+352	306
+16	347
+114	76
+205	4
+75	116
+228	123
+16	94
+295	379
+286	248
+248	131
+354	261
+373	7
+375	7
+75	361
+143	304
+119	331
+330	293
+49	314
+388	107
+19	58
+150	308
+196	94
+334	120
+168	340
+55	22
+70	338
+195	334
+62	27
+191	334
+119	173
+277	56
+8	107
+224	1
+272	209
+301	215
+38	220
+316	247
+189	398
+129	90
+55	247
+309	67
+200	154
+333	107
+312	120
+223	292
+85	117
+244	400
+160	180
+295	339
+272	251
+2	177
+274	118
+255	375
+391	140
+314	394
+307	318
+153	168
+2	28
+52	294
+197	92
+274	375
+396	64
+322	261
+353	320
+43	107
+80	398
+321	389
+275	142
+161	340
+214	326
+262	330
+257	338
+308	131
+366	159
+164	1
+52	48
+153	359
+257	221
+347	259
+21	302
+362	14
+54	264
+19	60
+17	162
+36	147
+22	351
+208	311
+368	227
+192	360
+177	28
+113	165
+388	80
+92	328
+108	306
+33	26
+55	86
+53	50
+221	54
+158	245
+92	116
+274	197
+264	272
+107	149
+189	234
+377	245
+129	125
+318	300
+119	306
+4	38
+232	326
+130	12
+320	104
+331	276
+72	56
+286	158
+151	31
+36	390
+127	395
+152	69
+378	52
+297	169
+340	365
+97	385
+70	314
+34	282
+311	171
+121	12
+77	177
+115	200
+76	235
+23	125
+334	303
+128	155
+259	81
+115	239
+66	42
+175	334
+265	216
+110	117
+283	76
+170	19
+345	152
+288	203
+49	171
+356	349
+15	189
+6	316
+377	396
+187	270
+192	185
+246	301
+257	349
+276	289
+97	231
+348	259
+332	351
+68	166
+328	145
+170	307
+228	233
+67	254
+150	42
+252	1
+195	99
+207	47
+176	368
+81	384
+215	305
+249	286
+311	228
+391	203
+334	221
+243	338
+321	196
+285	88
+334	273
+268	109
+82	217
+156	371
+125	311
+295	130
+17	47
+316	331
+215	329
+190	123
+162	29
+50	170
+396	314
+110	217
+306	346
+391	54
+306	128
+265	273
+91	316
+1	10
+164	294
+337	64
+373	56
+66	367
+342	355
+326	123
+171	228
+269	13
+334	149
+20	54
+268	154
+184	391
+301	114
+393	54
+7	360
+322	250
+41	21
+258	299
+133	285
+312	264
+283	361
+102	130
+259	283
+178	360
+4	114
+296	66
+22	80
+194	165
+188	229
+362	377
+223	128
+193	178
+1	113
+215	72
+356	231
+290	258
+22	10
+223	258
+205	382
+196	313
+6	283
+248	331
+74	77
+270	173
+321	216
+393	194
+79	60
+217	286
+202	163
+58	391
+287	318
+61	216
+126	22
+390	107
+98	71
+217	257
+226	69
+253	185
+390	48
+325	133
+249	297
+398	370
+319	26
+295	211
+155	50
+261	243
+181	63
+66	252
+165	386
+175	283
+286	153
+200	132
+379	337
+157	137
+84	192
+35	361
+62	114
+62	111
+130	48
+324	307
+50	120
+294	22
+345	133
+237	115
+237	13
+96	50
+344	136
+270	63
+97	315
+384	160
+15	192
+32	17
+183	132
+370	197
+63	266
+119	278
+143	257
+41	130
+71	261
+207	260
+95	253
+85	29
+213	110
+398	32
+45	394
+288	194
+6	251
+132	153
+93	223
+310	144
+289	116
+121	56
+272	113
+202	11
+366	166
+74	302
+207	19
+1	300
+107	106
+144	7
+232	188
+365	326
+176	21
+276	226
+223	84
+216	24
+196	205
+390	270
+266	39
+354	269
+39	279
+277	4
+44	6
+107	269
+271	238
+44	107
+114	331
+397	161
+329	318
+279	19
+132	172
+225	15
+15	168
+346	140
+82	197
+62	362
+151	390
+264	91
+400	263
+126	158
+227	210
+365	78
+378	119
+249	162
+16	248
+144	190
+259	334
+289	335
+3	163
+103	109
+394	305
+255	231
+331	50
+286	362
+78	166
+44	222
+15	375
+234	79
+194	96
+110	320
+20	305
+177	151
+269	100
+52	29
+28	352
+15	99
+81	140
+332	47
+349	314
+240	354
+31	227
+27	271
+234	263
+200	352
+166	200
+1	292
+267	50
+227	259
+156	216
+345	397
+58	170
+384	156
+103	365
+397	298
+218	3
+211	129
+369	189
+218	292
+101	379
+206	7
+158	327
+164	259
+374	173
+277	143
+172	1
+51	29
+162	3
+21	340
+299	261
+329	306
+386	294
+118	259
+279	174
+273	167
+201	320
+385	372
+64	231
+369	128
+21	338
+119	119
+299	205
+2	123
+90	298
+11	163
+305	137
+45	61
+219	318
+340	391
+205	179
+170	390
+254	12
+281	297
+368	216
+82	285
+143	288
+337	37
+176	123
+385	356
+277	304
+386	202
+110	125
+148	62
+241	359
+326	29
+77	231
+285	308
+31	61
+354	176
+122	38
+191	187
+363	154
+134	84
+342	236
+305	8
+106	276
+\.
+
+
+--
+-- TOC entry 3519 (class 0 OID 32894)
+-- Dependencies: 233
+-- Data for Name: productionequipment_; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.productionequipment_ (equipmentid_, type_, status_) FROM stdin;
+1	Stirrer   	repair
+2	Filter    	repair
+3	Hose      	retired
+4	Tank      	active
+5	Conveyor  	retired
+6	Barrel    	retired
+7	Stirrer   	active
+8	Pump      	repair
+9	Crusher   	repair
+10	Washer    	repair
+11	Barrel    	active
+12	Filter    	retired
+13	Tank      	active
+14	Filter    	active
+15	Pump      	repair
+16	Hose      	active
+17	Tank      	retired
+18	Crusher   	retired
+19	Stirrer   	retired
+20	Hose      	repair
+21	Pump      	repair
+22	Tank      	active
+23	Hose      	retired
+24	Stirrer   	repair
+25	Pump      	repair
+26	Crusher   	repair
+27	Washer    	retired
+28	Conveyor  	retired
+29	Stirrer   	repair
+30	Barrel    	retired
+31	Crusher   	retired
+32	Barrel    	repair
+33	Crusher   	repair
+34	Fermenter 	active
+35	Filter    	repair
+36	Tank      	repair
+37	Filter    	active
+38	Filter    	repair
+39	Pump      	active
+40	Filter    	repair
+100	Hose      	Overloaded
+101	Filter    	Overloaded
+102	Filter    	InUse
+\.
+
+
+--
+-- TOC entry 3520 (class 0 OID 32897)
+-- Dependencies: 234
+-- Data for Name: productionprocess_; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.productionprocess_ (processid_, type_, startdate_, enddate_, seqnumber, grapeid, employeeid, batchnumber_) FROM stdin;
+1	1	2024-02-02	2024-02-04	1	3	39	228
+2	2	2024-02-07	2024-02-09	2	9	16	228
+3	3	2024-02-12	2024-02-14	3	1	22	228
+4	4	2024-02-17	2024-02-20	4	1	41	228
+5	1	2024-02-15	2024-02-18	1	8	46	289
+6	2	2024-02-20	2024-02-23	2	3	12	289
+7	3	2024-02-25	2024-02-28	3	2	10	289
+8	4	2024-03-01	2024-03-03	4	1	39	289
+9	1	2024-02-12	2024-02-13	1	10	38	202
+10	2	2024-02-17	2024-02-19	2	2	18	202
+11	3	2024-02-22	2024-02-25	3	7	3	202
+12	4	2024-02-27	2024-03-01	4	9	23	202
+13	1	2024-01-31	2024-02-02	1	8	1	226
+14	2	2024-02-05	2024-02-07	2	7	17	226
+15	3	2024-02-10	2024-02-13	3	7	17	226
+16	4	2024-02-15	2024-02-17	4	3	33	226
+17	1	2024-01-02	2024-01-03	1	8	24	399
+18	2	2024-01-07	2024-01-09	2	7	1	399
+19	3	2024-01-12	2024-01-14	3	1	13	399
+20	4	2024-01-17	2024-01-19	4	8	14	399
+21	1	2024-03-14	2024-03-17	1	5	16	68
+22	2	2024-03-19	2024-03-22	2	8	37	68
+23	3	2024-03-24	2024-03-25	3	8	34	68
+24	4	2024-03-29	2024-03-30	4	5	3	68
+25	1	2024-01-29	2024-01-31	1	1	20	15
+26	2	2024-02-03	2024-02-04	2	1	6	15
+27	3	2024-02-08	2024-02-09	3	2	33	15
+28	4	2024-02-13	2024-02-16	4	6	28	15
+29	1	2024-01-29	2024-01-31	1	8	44	221
+30	2	2024-02-03	2024-02-04	2	7	3	221
+31	3	2024-02-08	2024-02-09	3	10	45	221
+32	4	2024-02-13	2024-02-15	4	4	10	221
+33	1	2024-03-14	2024-03-17	1	10	6	50
+34	2	2024-03-19	2024-03-22	2	7	7	50
+35	3	2024-03-24	2024-03-25	3	10	38	50
+36	4	2024-03-29	2024-03-30	4	9	42	50
+37	1	2024-03-02	2024-03-05	1	7	10	206
+38	2	2024-03-07	2024-03-10	2	5	9	206
+39	3	2024-03-12	2024-03-14	3	10	18	206
+40	4	2024-03-17	2024-03-18	4	9	49	206
+41	1	2024-03-10	2024-03-11	1	2	49	146
+42	2	2024-03-15	2024-03-16	2	3	44	146
+43	3	2024-03-20	2024-03-21	3	3	42	146
+44	4	2024-03-25	2024-03-28	4	9	28	146
+45	1	2024-04-06	2024-04-07	1	6	41	260
+46	2	2024-04-11	2024-04-14	2	6	35	260
+47	3	2024-04-16	2024-04-17	3	10	22	260
+48	4	2024-04-21	2024-04-24	4	2	37	260
+49	1	2024-03-28	2024-03-31	1	10	11	88
+50	2	2024-04-02	2024-04-05	2	9	36	88
+51	3	2024-04-07	2024-04-10	3	4	5	88
+52	4	2024-04-12	2024-04-13	4	10	14	88
+53	1	2024-02-27	2024-02-28	1	10	3	126
+54	2	2024-03-03	2024-03-04	2	9	50	126
+55	3	2024-03-08	2024-03-09	3	10	19	126
+56	4	2024-03-13	2024-03-14	4	7	33	126
+57	1	2024-02-03	2024-02-04	1	1	7	20
+58	2	2024-02-08	2024-02-09	2	8	45	20
+59	3	2024-02-13	2024-02-15	3	6	21	20
+60	4	2024-02-18	2024-02-20	4	3	35	20
+61	1	2024-02-22	2024-02-23	1	5	9	207
+62	2	2024-02-27	2024-02-28	2	3	41	207
+63	3	2024-03-03	2024-03-05	3	8	50	207
+64	4	2024-03-08	2024-03-10	4	9	28	207
+65	1	2024-01-31	2024-02-02	1	10	46	296
+66	2	2024-02-05	2024-02-06	2	10	14	296
+67	3	2024-02-10	2024-02-12	3	7	16	296
+68	4	2024-02-15	2024-02-18	4	7	39	296
+69	1	2024-03-14	2024-03-16	1	5	34	53
+70	2	2024-03-19	2024-03-20	2	10	2	53
+71	3	2024-03-24	2024-03-27	3	1	50	53
+72	4	2024-03-29	2024-04-01	4	2	37	53
+73	1	2024-03-22	2024-03-24	1	3	20	132
+74	2	2024-03-27	2024-03-28	2	2	2	132
+75	3	2024-04-01	2024-04-04	3	8	37	132
+76	4	2024-04-06	2024-04-09	4	5	2	132
+77	1	2024-01-14	2024-01-16	1	6	16	254
+78	2	2024-01-19	2024-01-21	2	1	29	254
+79	3	2024-01-24	2024-01-27	3	2	3	254
+80	4	2024-01-29	2024-01-31	4	5	32	254
+81	1	2024-03-28	2024-03-31	1	9	24	397
+82	2	2024-04-02	2024-04-03	2	4	19	397
+83	3	2024-04-07	2024-04-08	3	4	43	397
+84	4	2024-04-12	2024-04-15	4	5	38	397
+85	1	2024-02-26	2024-02-27	1	5	3	234
+86	2	2024-03-02	2024-03-05	2	9	20	234
+87	3	2024-03-07	2024-03-08	3	7	49	234
+88	4	2024-03-12	2024-03-13	4	5	19	234
+89	1	2024-01-29	2024-01-31	1	7	7	374
+90	2	2024-02-03	2024-02-06	2	1	35	374
+91	3	2024-02-08	2024-02-10	3	3	14	374
+92	4	2024-02-13	2024-02-14	4	10	22	374
+93	1	2024-01-20	2024-01-22	1	4	3	86
+94	2	2024-01-25	2024-01-27	2	6	27	86
+95	3	2024-01-30	2024-02-02	3	4	42	86
+96	4	2024-02-04	2024-02-06	4	9	18	86
+97	1	2024-03-15	2024-03-18	1	8	17	140
+98	2	2024-03-20	2024-03-21	2	6	45	140
+99	3	2024-03-25	2024-03-27	3	2	20	140
+100	4	2024-03-30	2024-03-31	4	5	28	140
+101	1	2024-02-04	2024-02-07	1	4	31	63
+102	2	2024-02-09	2024-02-10	2	9	25	63
+103	3	2024-02-14	2024-02-15	3	2	7	63
+104	4	2024-02-19	2024-02-22	4	10	30	63
+105	1	2024-02-05	2024-02-06	1	4	41	202
+106	2	2024-02-10	2024-02-12	2	10	11	202
+107	3	2024-02-15	2024-02-18	3	6	40	202
+108	4	2024-02-20	2024-02-21	4	8	33	202
+109	1	2024-02-22	2024-02-25	1	1	34	181
+110	2	2024-02-27	2024-02-29	2	3	38	181
+111	3	2024-03-03	2024-03-05	3	8	19	181
+112	4	2024-03-08	2024-03-11	4	7	7	181
+113	1	2024-03-20	2024-03-23	1	7	12	21
+114	2	2024-03-25	2024-03-28	2	10	6	21
+115	3	2024-03-30	2024-04-01	3	7	3	21
+116	4	2024-04-04	2024-04-05	4	7	20	21
+117	1	2024-03-23	2024-03-25	1	7	15	85
+118	2	2024-03-28	2024-03-29	2	4	5	85
+119	3	2024-04-02	2024-04-05	3	10	5	85
+120	4	2024-04-07	2024-04-10	4	2	1	85
+121	1	2024-03-11	2024-03-14	1	8	4	317
+122	2	2024-03-16	2024-03-19	2	10	7	317
+123	3	2024-03-21	2024-03-22	3	6	41	317
+124	4	2024-03-26	2024-03-27	4	1	14	317
+125	1	2024-03-28	2024-03-29	1	3	2	242
+126	2	2024-04-02	2024-04-03	2	8	13	242
+127	3	2024-04-07	2024-04-09	3	3	41	242
+128	4	2024-04-12	2024-04-14	4	4	43	242
+129	1	2024-04-09	2024-04-10	1	1	15	67
+130	2	2024-04-14	2024-04-17	2	2	1	67
+131	3	2024-04-19	2024-04-20	3	4	43	67
+132	4	2024-04-24	2024-04-26	4	7	43	67
+133	1	2024-01-27	2024-01-30	1	5	42	260
+134	2	2024-02-01	2024-02-03	2	6	13	260
+135	3	2024-02-06	2024-02-09	3	7	44	260
+136	4	2024-02-11	2024-02-12	4	4	22	260
+137	1	2024-04-04	2024-04-05	1	10	1	158
+138	2	2024-04-09	2024-04-10	2	1	50	158
+139	3	2024-04-14	2024-04-15	3	1	13	158
+140	4	2024-04-19	2024-04-21	4	1	15	158
+141	1	2024-01-16	2024-01-17	1	2	19	390
+142	2	2024-01-21	2024-01-22	2	6	10	390
+143	3	2024-01-26	2024-01-29	3	6	29	390
+144	4	2024-01-31	2024-02-02	4	5	10	390
+145	1	2024-01-06	2024-01-08	1	4	33	345
+146	2	2024-01-11	2024-01-13	2	3	46	345
+147	3	2024-01-16	2024-01-18	3	10	32	345
+148	4	2024-01-21	2024-01-22	4	5	8	345
+149	1	2024-03-28	2024-03-31	1	8	38	103
+150	2	2024-04-02	2024-04-03	2	5	32	103
+151	3	2024-04-07	2024-04-08	3	5	21	103
+152	4	2024-04-12	2024-04-14	4	6	14	103
+153	1	2024-03-31	2024-04-01	1	9	6	366
+154	2	2024-04-05	2024-04-07	2	9	17	366
+155	3	2024-04-10	2024-04-13	3	6	22	366
+156	4	2024-04-15	2024-04-17	4	8	16	366
+157	1	2024-03-05	2024-03-06	1	2	44	383
+158	2	2024-03-10	2024-03-13	2	8	50	383
+159	3	2024-03-15	2024-03-16	3	8	41	383
+160	4	2024-03-20	2024-03-23	4	6	34	383
+161	1	2024-04-10	2024-04-12	1	9	50	85
+162	2	2024-04-15	2024-04-16	2	5	7	85
+163	3	2024-04-20	2024-04-22	3	4	15	85
+164	4	2024-04-25	2024-04-27	4	1	27	85
+165	1	2024-02-06	2024-02-08	1	2	42	267
+166	2	2024-02-11	2024-02-12	2	1	48	267
+167	3	2024-02-16	2024-02-18	3	1	4	267
+168	4	2024-02-21	2024-02-24	4	4	25	267
+169	1	2024-03-18	2024-03-21	1	4	36	215
+170	2	2024-03-23	2024-03-24	2	8	16	215
+171	3	2024-03-28	2024-03-30	3	4	14	215
+172	4	2024-04-02	2024-04-05	4	10	11	215
+173	1	2024-01-06	2024-01-07	1	7	49	270
+174	2	2024-01-11	2024-01-13	2	7	28	270
+175	3	2024-01-16	2024-01-17	3	1	46	270
+176	4	2024-01-21	2024-01-23	4	7	6	270
+177	1	2024-04-07	2024-04-09	1	1	19	319
+178	2	2024-04-12	2024-04-14	2	1	28	319
+179	3	2024-04-17	2024-04-19	3	9	22	319
+180	4	2024-04-22	2024-04-24	4	9	29	319
+181	1	2024-01-06	2024-01-08	1	10	45	325
+182	2	2024-01-11	2024-01-12	2	2	25	325
+183	3	2024-01-16	2024-01-18	3	8	10	325
+184	4	2024-01-21	2024-01-23	4	7	28	325
+185	1	2024-04-05	2024-04-07	1	10	41	363
+186	2	2024-04-10	2024-04-11	2	5	50	363
+187	3	2024-04-15	2024-04-16	3	8	16	363
+188	4	2024-04-20	2024-04-23	4	8	25	363
+189	1	2024-03-03	2024-03-06	1	3	22	342
+190	2	2024-03-08	2024-03-11	2	2	13	342
+191	3	2024-03-13	2024-03-14	3	10	46	342
+192	4	2024-03-18	2024-03-20	4	9	31	342
+193	1	2024-02-13	2024-02-15	1	10	14	373
+194	2	2024-02-18	2024-02-21	2	7	42	373
+195	3	2024-02-23	2024-02-24	3	9	50	373
+196	4	2024-02-28	2024-02-29	4	4	34	373
+197	1	2024-02-09	2024-02-12	1	10	44	202
+198	2	2024-02-14	2024-02-16	2	4	44	202
+199	3	2024-02-19	2024-02-21	3	10	6	202
+200	4	2024-02-24	2024-02-25	4	8	11	202
+201	1	2024-02-01	2024-02-03	1	3	28	190
+202	2	2024-02-06	2024-02-07	2	1	36	190
+203	3	2024-02-11	2024-02-14	3	4	7	190
+204	4	2024-02-16	2024-02-18	4	2	13	190
+205	1	2024-03-10	2024-03-11	1	2	34	381
+206	2	2024-03-15	2024-03-16	2	5	45	381
+207	3	2024-03-20	2024-03-23	3	3	16	381
+208	4	2024-03-25	2024-03-27	4	5	31	381
+209	1	2024-01-31	2024-02-01	1	8	5	100
+210	2	2024-02-05	2024-02-08	2	8	32	100
+211	3	2024-02-10	2024-02-13	3	10	1	100
+212	4	2024-02-15	2024-02-17	4	5	28	100
+213	1	2024-03-10	2024-03-12	1	9	42	230
+214	2	2024-03-15	2024-03-17	2	8	39	230
+215	3	2024-03-20	2024-03-23	3	1	17	230
+216	4	2024-03-25	2024-03-27	4	9	48	230
+217	1	2024-03-12	2024-03-15	1	4	38	163
+218	2	2024-03-17	2024-03-19	2	9	21	163
+219	3	2024-03-22	2024-03-23	3	5	25	163
+220	4	2024-03-27	2024-03-30	4	5	7	163
+221	1	2024-02-17	2024-02-20	1	1	47	89
+222	2	2024-02-22	2024-02-25	2	6	47	89
+223	3	2024-02-27	2024-02-29	3	3	39	89
+224	4	2024-03-03	2024-03-04	4	8	11	89
+225	1	2024-01-24	2024-01-25	1	4	5	206
+226	2	2024-01-29	2024-02-01	2	8	13	206
+227	3	2024-02-03	2024-02-04	3	2	2	206
+228	4	2024-02-08	2024-02-09	4	3	50	206
+229	1	2024-03-01	2024-03-03	1	3	28	172
+230	2	2024-03-06	2024-03-09	2	9	30	172
+231	3	2024-03-11	2024-03-14	3	5	8	172
+232	4	2024-03-16	2024-03-19	4	4	41	172
+233	1	2024-01-29	2024-02-01	1	3	13	220
+234	2	2024-02-03	2024-02-04	2	1	18	220
+235	3	2024-02-08	2024-02-10	3	7	47	220
+236	4	2024-02-13	2024-02-16	4	2	10	220
+237	1	2024-01-02	2024-01-04	1	4	38	99
+238	2	2024-01-07	2024-01-08	2	6	32	99
+239	3	2024-01-12	2024-01-13	3	7	26	99
+240	4	2024-01-17	2024-01-19	4	9	36	99
+241	1	2024-02-19	2024-02-22	1	8	41	249
+242	2	2024-02-24	2024-02-25	2	1	14	249
+243	3	2024-02-29	2024-03-03	3	4	9	249
+244	4	2024-03-05	2024-03-06	4	8	18	249
+245	1	2024-02-27	2024-02-29	1	6	17	277
+246	2	2024-03-03	2024-03-04	2	6	15	277
+247	3	2024-03-08	2024-03-09	3	3	17	277
+248	4	2024-03-13	2024-03-14	4	3	11	277
+249	1	2024-02-18	2024-02-21	1	4	42	239
+250	2	2024-02-23	2024-02-26	2	6	33	239
+251	3	2024-02-28	2024-03-02	3	3	28	239
+252	4	2024-03-04	2024-03-07	4	5	42	239
+253	1	2024-03-05	2024-03-08	1	5	3	124
+254	2	2024-03-10	2024-03-13	2	1	19	124
+255	3	2024-03-15	2024-03-16	3	10	19	124
+256	4	2024-03-20	2024-03-21	4	6	6	124
+257	1	2024-01-04	2024-01-06	1	3	28	126
+258	2	2024-01-09	2024-01-10	2	10	33	126
+259	3	2024-01-14	2024-01-15	3	1	36	126
+260	4	2024-01-19	2024-01-22	4	2	33	126
+261	1	2024-01-03	2024-01-04	1	2	4	328
+262	2	2024-01-08	2024-01-11	2	4	13	328
+263	3	2024-01-13	2024-01-14	3	6	30	328
+264	4	2024-01-18	2024-01-20	4	6	5	328
+265	1	2024-02-03	2024-02-04	1	8	41	221
+266	2	2024-02-08	2024-02-09	2	3	37	221
+267	3	2024-02-13	2024-02-14	3	2	39	221
+268	4	2024-02-18	2024-02-20	4	7	8	221
+269	1	2024-03-09	2024-03-11	1	8	37	242
+270	2	2024-03-14	2024-03-16	2	9	37	242
+271	3	2024-03-19	2024-03-20	3	1	24	242
+272	4	2024-03-24	2024-03-25	4	6	21	242
+273	1	2024-01-08	2024-01-11	1	5	33	186
+274	2	2024-01-13	2024-01-16	2	2	44	186
+275	3	2024-01-18	2024-01-20	3	5	43	186
+276	4	2024-01-23	2024-01-24	4	10	6	186
+277	1	2024-01-13	2024-01-16	1	10	1	205
+278	2	2024-01-18	2024-01-19	2	2	48	205
+279	3	2024-01-23	2024-01-25	3	2	42	205
+280	4	2024-01-28	2024-01-31	4	6	10	205
+281	1	2024-01-12	2024-01-13	1	3	40	400
+282	2	2024-01-17	2024-01-18	2	1	44	400
+283	3	2024-01-22	2024-01-25	3	7	26	400
+284	4	2024-01-27	2024-01-29	4	3	29	400
+285	1	2024-02-24	2024-02-26	1	1	6	13
+286	2	2024-02-29	2024-03-03	2	2	25	13
+287	3	2024-03-05	2024-03-07	3	7	35	13
+288	4	2024-03-10	2024-03-13	4	10	3	13
+289	1	2024-04-03	2024-04-06	1	8	49	84
+290	2	2024-04-08	2024-04-09	2	6	50	84
+291	3	2024-04-13	2024-04-16	3	1	47	84
+292	4	2024-04-18	2024-04-19	4	7	47	84
+293	1	2024-03-28	2024-03-29	1	5	47	233
+294	2	2024-04-02	2024-04-05	2	3	48	233
+295	3	2024-04-07	2024-04-08	3	9	2	233
+296	4	2024-04-12	2024-04-14	4	7	25	233
+297	1	2024-01-08	2024-01-09	1	2	35	331
+298	2	2024-01-13	2024-01-16	2	5	43	331
+299	3	2024-01-18	2024-01-21	3	4	28	331
+300	4	2024-01-23	2024-01-25	4	3	25	331
+301	1	2024-04-04	2024-04-05	1	1	17	89
+302	2	2024-04-09	2024-04-12	2	1	15	89
+303	3	2024-04-14	2024-04-17	3	6	34	89
+304	4	2024-04-19	2024-04-21	4	4	49	89
+305	1	2024-01-11	2024-01-12	1	4	30	111
+306	2	2024-01-16	2024-01-19	2	3	46	111
+307	3	2024-01-21	2024-01-23	3	9	6	111
+308	4	2024-01-26	2024-01-29	4	6	41	111
+309	1	2024-02-23	2024-02-25	1	3	36	33
+310	2	2024-02-28	2024-03-02	2	3	34	33
+311	3	2024-03-04	2024-03-07	3	9	31	33
+312	4	2024-03-09	2024-03-12	4	8	36	33
+313	1	2024-02-26	2024-02-28	1	8	13	22
+314	2	2024-03-02	2024-03-04	2	10	12	22
+315	3	2024-03-07	2024-03-08	3	1	4	22
+316	4	2024-03-12	2024-03-15	4	2	44	22
+317	1	2024-01-30	2024-02-01	1	4	25	90
+318	2	2024-02-04	2024-02-07	2	8	25	90
+319	3	2024-02-09	2024-02-12	3	5	33	90
+320	4	2024-02-14	2024-02-15	4	9	50	90
+321	1	2024-03-01	2024-03-04	1	9	24	383
+322	2	2024-03-06	2024-03-09	2	1	26	383
+323	3	2024-03-11	2024-03-14	3	8	32	383
+324	4	2024-03-16	2024-03-18	4	9	24	383
+325	1	2024-02-24	2024-02-25	1	10	30	397
+326	2	2024-02-29	2024-03-03	2	6	31	397
+327	3	2024-03-05	2024-03-06	3	4	29	397
+328	4	2024-03-10	2024-03-13	4	9	8	397
+329	1	2024-01-06	2024-01-09	1	10	6	8
+330	2	2024-01-11	2024-01-14	2	3	45	8
+331	3	2024-01-16	2024-01-17	3	1	41	8
+332	4	2024-01-21	2024-01-24	4	9	40	8
+333	1	2024-01-24	2024-01-27	1	10	6	280
+334	2	2024-01-29	2024-01-30	2	10	27	280
+335	3	2024-02-03	2024-02-04	3	10	26	280
+336	4	2024-02-08	2024-02-09	4	6	23	280
+337	1	2024-03-30	2024-04-02	1	2	43	287
+338	2	2024-04-04	2024-04-07	2	5	26	287
+339	3	2024-04-09	2024-04-11	3	6	42	287
+340	4	2024-04-14	2024-04-17	4	6	14	287
+341	1	2024-01-25	2024-01-26	1	8	26	219
+342	2	2024-01-30	2024-02-02	2	7	30	219
+343	3	2024-02-04	2024-02-07	3	8	4	219
+344	4	2024-02-09	2024-02-12	4	9	25	219
+345	1	2024-01-01	2024-01-02	1	1	32	366
+346	2	2024-01-06	2024-01-07	2	6	4	366
+347	3	2024-01-11	2024-01-13	3	8	35	366
+348	4	2024-01-16	2024-01-18	4	2	39	366
+349	1	2024-02-05	2024-02-08	1	9	4	162
+350	2	2024-02-10	2024-02-11	2	5	20	162
+351	3	2024-02-15	2024-02-18	3	8	9	162
+352	4	2024-02-20	2024-02-22	4	9	2	162
+353	1	2024-03-26	2024-03-28	1	5	9	301
+354	2	2024-03-31	2024-04-02	2	10	5	301
+355	3	2024-04-05	2024-04-06	3	1	48	301
+356	4	2024-04-10	2024-04-13	4	6	31	301
+357	1	2024-01-09	2024-01-12	1	3	28	44
+358	2	2024-01-14	2024-01-16	2	8	2	44
+359	3	2024-01-19	2024-01-22	3	9	20	44
+360	4	2024-01-24	2024-01-25	4	1	1	44
+361	1	2024-01-01	2024-01-03	1	4	24	236
+362	2	2024-01-06	2024-01-09	2	7	40	236
+363	3	2024-01-11	2024-01-14	3	5	16	236
+364	4	2024-01-16	2024-01-18	4	9	40	236
+365	1	2024-04-03	2024-04-04	1	3	2	235
+366	2	2024-04-08	2024-04-09	2	9	26	235
+367	3	2024-04-13	2024-04-15	3	1	26	235
+368	4	2024-04-18	2024-04-21	4	1	12	235
+369	1	2024-03-09	2024-03-11	1	4	17	30
+370	2	2024-03-14	2024-03-15	2	5	24	30
+371	3	2024-03-19	2024-03-22	3	4	1	30
+372	4	2024-03-24	2024-03-27	4	7	42	30
+373	1	2024-02-16	2024-02-17	1	6	32	140
+374	2	2024-02-21	2024-02-23	2	9	5	140
+375	3	2024-02-26	2024-02-27	3	10	29	140
+376	4	2024-03-02	2024-03-03	4	6	49	140
+377	1	2024-04-06	2024-04-08	1	10	5	70
+378	2	2024-04-11	2024-04-13	2	7	6	70
+379	3	2024-04-16	2024-04-19	3	1	19	70
+380	4	2024-04-21	2024-04-24	4	10	29	70
+381	1	2024-02-12	2024-02-13	1	1	36	389
+382	2	2024-02-17	2024-02-18	2	5	28	389
+383	3	2024-02-22	2024-02-24	3	4	27	389
+384	4	2024-02-27	2024-02-28	4	6	14	389
+385	1	2024-03-19	2024-03-21	1	2	27	266
+386	2	2024-03-24	2024-03-27	2	6	9	266
+387	3	2024-03-29	2024-03-30	3	5	36	266
+388	4	2024-04-03	2024-04-05	4	5	30	266
+389	1	2024-03-03	2024-03-05	1	6	17	326
+390	2	2024-03-08	2024-03-11	2	5	13	326
+391	3	2024-03-13	2024-03-15	3	4	29	326
+392	4	2024-03-18	2024-03-20	4	10	43	326
+393	1	2024-04-10	2024-04-12	1	10	18	360
+394	2	2024-04-15	2024-04-18	2	7	23	360
+395	3	2024-04-20	2024-04-23	3	8	41	360
+396	4	2024-04-25	2024-04-28	4	8	9	360
+397	1	2024-02-27	2024-02-28	1	10	5	86
+398	2	2024-03-03	2024-03-04	2	4	17	86
+399	3	2024-03-08	2024-03-10	3	2	4	86
+400	4	2024-03-13	2024-03-14	4	8	45	86
+\.
+
+
+--
+-- TOC entry 3509 (class 0 OID 16408)
+-- Dependencies: 222
+-- Data for Name: receive; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.receive (task_id, vineyard_id) FROM stdin;
+1	1
+2	2
+3	3
+100	375
+101	427
+104	351
+107	191
+108	241
+110	371
+112	188
+113	202
+114	493
+119	176
+120	356
+121	131
+126	255
+128	288
+130	445
+137	291
+139	175
+143	376
+144	273
+145	266
+146	242
+147	189
+148	488
+149	190
+150	143
+151	475
+156	443
+158	263
+159	446
+160	458
+161	174
+164	129
+165	227
+166	337
+167	334
+168	399
+169	346
+170	106
+172	348
+173	186
+174	402
+176	261
+177	262
+178	386
+180	178
+181	433
+182	167
+186	322
+187	481
+188	411
+189	437
+190	123
+191	325
+192	156
+194	198
+195	247
+196	484
+197	231
+201	497
+202	166
+205	398
+206	105
+209	329
+210	214
+213	374
+216	370
+218	473
+219	278
+220	199
+222	383
+223	400
+225	236
+226	389
+228	461
+229	141
+231	430
+232	345
+235	309
+236	478
+237	136
+239	377
+240	286
+241	435
+242	107
+243	172
+244	148
+245	323
+248	109
+250	491
+251	360
+253	373
+254	324
+257	184
+260	171
+261	460
+266	419
+267	201
+268	267
+269	467
+271	125
+272	382
+273	265
+274	306
+275	403
+281	474
+282	103
+284	358
+285	132
+287	245
+288	150
+291	441
+293	287
+294	243
+298	444
+303	410
+305	169
+309	179
+312	321
+313	226
+317	412
+318	212
+320	215
+321	490
+322	140
+324	463
+326	302
+328	372
+330	108
+332	181
+333	379
+334	235
+335	407
+341	170
+342	260
+346	233
+347	456
+350	428
+351	301
+352	101
+353	137
+354	483
+356	320
+357	387
+359	485
+362	440
+363	344
+365	296
+368	414
+369	285
+371	339
+373	486
+377	259
+378	168
+379	138
+380	219
+381	222
+382	438
+383	165
+384	482
+385	110
+386	368
+387	462
+388	487
+389	238
+390	290
+392	336
+393	333
+395	405
+396	224
+399	413
+401	232
+405	494
+406	422
+410	415
+412	404
+415	177
+416	476
+420	355
+421	203
+424	327
+426	293
+427	349
+428	294
+431	248
+433	240
+434	159
+435	392
+436	359
+437	447
+439	342
+441	352
+442	121
+444	118
+445	354
+446	230
+447	384
+448	139
+449	396
+450	292
+451	472
+453	217
+455	221
+456	298
+459	326
+463	281
+464	163
+465	229
+466	135
+468	335
+469	429
+470	385
+471	448
+473	162
+474	353
+476	218
+477	442
+478	300
+479	362
+480	192
+481	112
+482	115
+484	185
+486	200
+489	409
+491	452
+492	331
+494	307
+495	421
+498	471
+499	499
+\.
+
+
+--
+-- TOC entry 3510 (class 0 OID 16411)
+-- Dependencies: 223
+-- Data for Name: vine; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.vine (vine_id, v_date, maturity_level) FROM stdin;
+1	2020-03-01	unripe
+2	2019-05-10	ripe
+3	2018-07-15	rotten
+100	2024-12-07	rotten
+101	2024-07-13	ripe
+102	2024-06-13	ripe
+103	2025-03-17	ripe
+104	2024-12-08	ripe
+105	2024-07-06	ripe
+106	2024-04-27	unripe
+107	2024-08-26	rotten
+108	2024-12-15	rotten
+109	2024-07-31	unripe
+110	2024-05-25	rotten
+111	2025-02-12	ripe
+112	2025-02-18	ripe
+113	2024-04-10	ripe
+114	2025-02-04	unripe
+115	2024-09-16	unripe
+116	2024-05-04	ripe
+117	2024-11-10	unripe
+118	2024-06-02	rotten
+119	2024-08-23	rotten
+120	2025-03-23	unripe
+121	2024-12-18	rotten
+122	2024-09-29	rotten
+123	2025-01-16	rotten
+124	2024-12-01	ripe
+125	2024-09-18	unripe
+126	2025-01-02	ripe
+127	2025-01-25	rotten
+128	2024-05-13	rotten
+129	2025-03-05	unripe
+130	2025-01-21	unripe
+131	2024-06-07	unripe
+132	2024-07-18	rotten
+133	2024-11-12	unripe
+134	2024-07-20	rotten
+135	2024-05-06	ripe
+136	2025-02-20	ripe
+137	2025-01-01	unripe
+138	2024-09-18	unripe
+139	2024-10-16	unripe
+140	2024-10-29	rotten
+141	2024-07-11	ripe
+142	2024-12-18	rotten
+143	2025-02-18	rotten
+144	2024-09-08	rotten
+145	2024-05-16	ripe
+146	2024-10-13	rotten
+147	2025-03-07	rotten
+148	2024-10-15	ripe
+149	2025-02-25	unripe
+150	2025-03-04	rotten
+151	2025-03-25	rotten
+152	2025-03-27	unripe
+153	2024-03-31	ripe
+154	2024-06-24	unripe
+155	2024-04-25	rotten
+156	2024-10-24	unripe
+157	2024-05-07	unripe
+158	2024-06-03	unripe
+159	2024-05-01	ripe
+160	2024-12-18	rotten
+161	2025-01-26	unripe
+162	2024-05-20	ripe
+163	2024-05-27	unripe
+164	2024-12-31	ripe
+165	2024-07-29	unripe
+166	2024-05-06	ripe
+167	2025-02-18	rotten
+168	2025-02-09	ripe
+169	2025-03-23	rotten
+170	2025-03-19	rotten
+171	2024-12-08	rotten
+172	2025-01-31	ripe
+173	2025-03-05	ripe
+174	2024-07-02	rotten
+175	2025-03-04	unripe
+176	2024-06-05	ripe
+177	2025-01-30	ripe
+178	2024-10-05	unripe
+179	2024-07-04	ripe
+180	2024-07-05	ripe
+181	2025-01-11	unripe
+182	2024-08-19	ripe
+183	2024-09-18	unripe
+184	2025-02-25	unripe
+185	2024-08-10	unripe
+186	2024-04-22	unripe
+187	2024-06-22	unripe
+188	2024-11-11	unripe
+189	2024-04-08	unripe
+190	2025-02-20	unripe
+191	2024-07-27	rotten
+192	2025-02-12	rotten
+193	2024-11-03	ripe
+194	2024-04-02	rotten
+195	2024-08-30	rotten
+196	2025-01-29	unripe
+197	2025-03-28	ripe
+198	2024-12-24	ripe
+199	2024-11-18	unripe
+200	2025-01-29	unripe
+201	2024-12-28	rotten
+202	2024-10-17	unripe
+203	2024-09-25	ripe
+204	2024-11-14	rotten
+205	2025-03-09	ripe
+206	2024-05-23	ripe
+207	2024-07-31	ripe
+208	2025-01-23	rotten
+209	2025-01-01	ripe
+210	2025-01-30	ripe
+211	2024-10-14	rotten
+212	2025-01-22	unripe
+213	2024-12-27	unripe
+214	2024-06-11	rotten
+215	2024-06-09	unripe
+216	2024-10-16	unripe
+217	2024-07-10	ripe
+218	2024-04-25	rotten
+219	2024-11-22	ripe
+220	2024-10-02	ripe
+221	2024-07-20	rotten
+222	2024-09-05	unripe
+223	2024-09-29	rotten
+224	2025-03-03	ripe
+225	2025-01-10	rotten
+226	2024-11-18	rotten
+227	2025-01-23	rotten
+228	2024-07-22	unripe
+229	2024-05-23	unripe
+230	2024-07-14	unripe
+231	2024-07-12	rotten
+232	2025-01-14	ripe
+233	2024-08-20	ripe
+234	2024-04-22	rotten
+235	2025-03-13	unripe
+236	2024-05-02	ripe
+237	2024-10-09	ripe
+238	2024-04-08	ripe
+239	2024-08-20	rotten
+240	2024-12-20	ripe
+241	2024-11-19	rotten
+242	2025-01-22	unripe
+243	2024-08-28	unripe
+244	2024-11-05	ripe
+245	2024-10-16	ripe
+246	2024-11-28	rotten
+247	2025-01-20	rotten
+248	2024-04-14	rotten
+249	2024-10-26	rotten
+250	2025-01-25	ripe
+251	2024-12-13	unripe
+252	2025-03-07	unripe
+253	2024-09-29	ripe
+254	2024-06-02	rotten
+255	2024-03-29	unripe
+256	2024-12-06	ripe
+257	2024-04-16	rotten
+258	2024-12-06	ripe
+259	2024-05-09	rotten
+260	2025-02-28	rotten
+261	2024-04-22	ripe
+262	2025-02-03	rotten
+263	2024-10-06	unripe
+264	2024-04-04	ripe
+265	2025-01-17	rotten
+266	2025-02-21	unripe
+267	2024-10-29	unripe
+268	2025-02-10	ripe
+269	2024-11-06	rotten
+270	2024-04-19	rotten
+271	2024-04-05	ripe
+272	2024-04-29	rotten
+273	2025-01-31	ripe
+274	2024-05-15	rotten
+275	2024-06-23	ripe
+276	2024-08-20	ripe
+277	2024-06-09	unripe
+278	2025-03-06	ripe
+279	2025-03-14	rotten
+280	2025-02-03	ripe
+281	2024-07-13	ripe
+282	2024-10-21	ripe
+283	2024-04-13	unripe
+284	2024-09-26	ripe
+285	2024-05-15	unripe
+286	2024-09-25	rotten
+287	2024-09-15	rotten
+288	2025-01-27	rotten
+289	2025-01-09	ripe
+290	2024-04-03	unripe
+291	2024-07-20	unripe
+292	2024-12-03	rotten
+293	2024-06-01	rotten
+294	2024-12-16	ripe
+295	2024-08-17	rotten
+296	2024-07-29	rotten
+297	2024-10-07	rotten
+298	2024-12-20	ripe
+299	2024-03-31	rotten
+300	2024-04-19	rotten
+301	2024-05-03	unripe
+302	2024-04-30	rotten
+303	2025-03-09	rotten
+304	2024-06-07	rotten
+305	2024-08-15	unripe
+306	2024-12-18	ripe
+307	2024-09-13	unripe
+308	2024-11-09	unripe
+309	2024-06-12	rotten
+310	2025-01-23	ripe
+311	2024-10-26	rotten
+312	2025-03-14	unripe
+313	2024-11-23	unripe
+314	2024-09-30	unripe
+315	2024-06-02	unripe
+316	2025-03-05	rotten
+317	2024-09-02	ripe
+318	2024-10-01	rotten
+319	2024-11-23	ripe
+320	2024-04-26	ripe
+321	2024-05-09	unripe
+322	2024-07-13	ripe
+323	2024-06-09	unripe
+324	2024-08-28	ripe
+325	2024-06-23	unripe
+326	2024-11-06	unripe
+327	2024-11-26	unripe
+328	2025-02-12	rotten
+329	2024-04-05	ripe
+330	2024-05-21	unripe
+331	2025-01-24	unripe
+332	2025-02-10	ripe
+333	2024-11-03	ripe
+334	2024-05-20	rotten
+335	2024-10-01	ripe
+336	2024-07-17	rotten
+337	2025-01-04	rotten
+338	2024-07-31	ripe
+339	2024-07-09	ripe
+340	2024-07-31	unripe
+341	2024-10-28	rotten
+342	2024-05-12	rotten
+343	2024-11-13	ripe
+344	2025-01-29	rotten
+345	2025-02-11	rotten
+346	2025-03-18	unripe
+347	2024-11-17	rotten
+348	2024-11-18	rotten
+349	2024-10-31	rotten
+350	2024-12-23	rotten
+354	2024-08-28	unripe
+365	2024-10-22	unripe
+370	2024-03-31	ripe
+382	2024-12-12	unripe
+383	2024-11-03	ripe
+384	2024-04-07	ripe
+385	2024-07-11	unripe
+386	2024-04-23	unripe
+387	2024-05-25	ripe
+388	2024-08-28	rotten
+389	2024-09-21	unripe
+390	2024-06-27	ripe
+391	2024-09-14	ripe
+392	2024-10-07	ripe
+393	2024-06-01	ripe
+394	2024-05-28	unripe
+395	2024-10-27	unripe
+396	2024-11-08	unripe
+397	2024-05-27	unripe
+398	2025-01-18	rotten
+399	2025-03-03	ripe
+400	2025-01-18	unripe
+401	2024-10-17	rotten
+402	2024-09-08	unripe
+403	2025-02-14	ripe
+404	2024-10-03	rotten
+405	2024-10-20	unripe
+406	2025-03-28	unripe
+407	2024-08-13	ripe
+408	2024-08-29	rotten
+409	2024-10-23	ripe
+410	2024-09-05	unripe
+411	2024-06-23	ripe
+412	2024-12-22	ripe
+413	2024-08-17	rotten
+414	2024-06-23	rotten
+415	2024-09-24	rotten
+416	2024-08-28	unripe
+417	2024-08-31	rotten
+418	2025-03-28	ripe
+419	2024-09-01	rotten
+420	2024-11-10	unripe
+421	2025-01-27	rotten
+422	2024-04-16	ripe
+423	2024-06-15	unripe
+424	2025-01-16	rotten
+425	2024-04-15	ripe
+426	2025-03-11	rotten
+427	2024-04-06	ripe
+428	2024-12-27	ripe
+429	2024-08-27	ripe
+430	2024-10-10	unripe
+431	2024-05-09	ripe
+432	2025-01-28	rotten
+433	2024-08-24	unripe
+434	2024-12-30	unripe
+435	2024-09-26	ripe
+436	2024-09-06	ripe
+437	2024-07-31	rotten
+438	2024-04-01	ripe
+439	2024-12-25	rotten
+440	2025-02-18	ripe
+441	2024-09-19	unripe
+442	2024-07-08	unripe
+443	2025-03-11	ripe
+444	2025-03-20	ripe
+445	2024-10-07	unripe
+446	2024-05-17	unripe
+447	2024-07-21	unripe
+448	2025-03-26	ripe
+449	2024-11-12	unripe
+450	2024-10-29	ripe
+451	2024-07-28	ripe
+452	2024-11-19	ripe
+453	2024-05-08	ripe
+454	2024-07-23	rotten
+455	2024-12-02	rotten
+456	2024-08-17	rotten
+457	2024-04-25	rotten
+458	2025-03-20	unripe
+459	2024-10-23	ripe
+460	2024-09-12	ripe
+461	2024-04-27	unripe
+462	2024-10-29	rotten
+463	2024-08-21	ripe
+464	2024-07-21	rotten
+465	2025-02-01	ripe
+466	2024-04-11	rotten
+467	2024-04-08	rotten
+468	2024-08-25	unripe
+469	2024-06-11	ripe
+470	2024-10-26	unripe
+471	2024-09-08	ripe
+472	2024-06-27	unripe
+473	2025-03-07	rotten
+474	2025-01-27	ripe
+475	2024-07-12	unripe
+476	2024-10-22	rotten
+477	2025-02-12	ripe
+478	2024-07-24	rotten
+479	2024-04-23	unripe
+480	2024-07-23	rotten
+481	2025-03-12	ripe
+482	2024-10-01	ripe
+483	2025-02-27	rotten
+484	2024-04-13	unripe
+485	2024-05-09	rotten
+486	2024-09-07	rotten
+487	2024-05-28	rotten
+488	2025-03-11	unripe
+489	2024-05-09	rotten
+490	2025-01-19	rotten
+491	2024-08-02	rotten
+492	2024-10-03	rotten
+493	2024-05-08	ripe
+494	2025-02-09	rotten
+495	2024-12-11	ripe
+496	2024-10-09	rotten
+497	2025-02-02	rotten
+498	2025-03-20	rotten
+499	2024-05-18	rotten
+501	2025-12-07	rotten
+502	2026-07-13	ripe
+503	2027-06-13	ripe
+504	2028-03-17	ripe
+505	2029-12-08	ripe
+888	2024-01-01	unripe
+999	2020-03-01	unripe
+998	2020-03-01	unripe
+997	2020-03-01	unripe
+4	\N	\N
+5	\N	\N
+6	\N	\N
+7	\N	\N
+8	\N	\N
+9	\N	\N
+10	\N	\N
+351	2024-09-11	Stressed
+352	2024-10-27	Stressed
+353	2024-08-23	Stressed
+355	2024-08-12	Stressed
+356	2024-04-23	Stressed
+357	2024-05-09	Stressed
+358	2024-07-09	Stressed
+359	2024-07-23	Stressed
+360	2024-05-28	Stressed
+361	2024-04-08	Stressed
+362	2024-10-02	Stressed
+363	2025-03-07	Stressed
+364	2024-04-10	Stressed
+366	2024-04-30	Stressed
+367	2025-03-19	Stressed
+368	2024-05-09	Stressed
+369	2024-04-23	Stressed
+371	2024-10-19	Stressed
+372	2024-11-11	Stressed
+373	2024-11-11	Stressed
+374	2024-12-12	Stressed
+375	2024-09-20	Stressed
+376	2024-03-30	Stressed
+377	2024-09-21	Stressed
+378	2024-08-09	Stressed
+379	2024-07-30	Stressed
+380	2024-08-03	Stressed
+381	2024-10-08	Stressed
+\.
+
+
+--
+-- TOC entry 3511 (class 0 OID 16416)
+-- Dependencies: 224
+-- Data for Name: vineyard; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.vineyard (vineyard_id, location, area_size, soil_type, vine_id, harvest_id) FROM stdin;
+1	east plot	100	sandy	1	1
+2	north  plot	150	gravel	2	2
+3	south plot	200	Sandy	3	3
+100	north  plot	150	sandy	100	100
+101	south plot	150	gravel	101	101
+102	south plot	250	sandy	102	102
+103	north  plot	200	gravel	103	103
+104	south plot	250	sandy	104	104
+105	east plot	200	gravel	105	105
+106	south plot	100	gravel	106	106
+107	east plot	100	gravel	107	107
+108	south plot	100	sandy	108	108
+109	south plot	200	sandy	109	109
+110	south plot	200	gravel	110	110
+111	south plot	200	sandy	111	111
+112	north  plot	100	gravel	112	112
+113	east plot	100	sandy	113	113
+114	north  plot	150	sandy	114	114
+115	south plot	150	gravel	115	115
+116	south plot	200	sandy	116	116
+117	north  plot	100	sandy	117	117
+118	east plot	200	gravel	118	118
+119	north  plot	200	sandy	119	119
+120	north  plot	100	sandy	120	120
+121	north  plot	150	gravel	121	121
+122	east plot	200	sandy	122	122
+123	south plot	150	gravel	123	123
+124	east plot	200	sandy	124	124
+125	south plot	150	gravel	125	125
+126	north  plot	150	sandy	126	126
+127	east plot	150	sandy	127	127
+128	east plot	150	sandy	128	128
+129	east plot	200	gravel	129	129
+130	north  plot	150	sandy	130	130
+131	north  plot	200	gravel	131	131
+132	south plot	100	gravel	132	132
+133	north  plot	150	sandy	133	133
+134	north  plot	100	sandy	134	134
+135	east plot	100	gravel	135	135
+136	east plot	150	gravel	136	136
+137	north  plot	150	gravel	137	137
+138	east plot	150	sandy	138	138
+139	north  plot	100	gravel	139	139
+140	north  plot	250	gravel	140	140
+141	south plot	100	sandy	141	141
+142	east plot	250	sandy	142	142
+143	south plot	200	gravel	143	143
+144	south plot	200	sandy	144	144
+145	north  plot	200	sandy	145	145
+146	east plot	150	sandy	146	146
+147	east plot	150	sandy	147	147
+148	south plot	100	gravel	148	148
+149	east plot	200	sandy	149	149
+150	south plot	150	gravel	150	150
+151	south plot	250	sandy	151	151
+152	north  plot	200	sandy	152	152
+153	east plot	250	sandy	153	153
+154	east plot	100	sandy	154	154
+155	north  plot	200	sandy	155	155
+156	south plot	150	gravel	156	156
+157	east plot	200	sandy	157	157
+158	east plot	100	sandy	158	158
+159	east plot	100	gravel	159	159
+160	north  plot	200	sandy	160	160
+161	east plot	200	sandy	161	161
+162	north  plot	200	gravel	162	162
+163	south plot	100	gravel	163	163
+164	east plot	100	sandy	164	164
+165	north  plot	250	gravel	165	165
+166	north  plot	150	gravel	166	166
+167	north  plot	250	gravel	167	167
+168	east plot	200	gravel	168	168
+169	north  plot	150	sandy	169	169
+170	east plot	150	gravel	170	170
+171	east plot	250	sandy	171	171
+172	east plot	150	gravel	172	172
+173	south plot	250	sandy	173	173
+174	south plot	250	gravel	174	174
+175	south plot	250	gravel	175	175
+176	south plot	200	gravel	176	176
+177	south plot	200	gravel	177	177
+178	north  plot	200	gravel	178	178
+179	east plot	100	gravel	179	179
+180	south plot	100	sandy	180	180
+181	south plot	100	gravel	181	181
+182	south plot	250	sandy	182	182
+183	east plot	250	sandy	183	183
+184	east plot	100	gravel	184	184
+185	east plot	150	gravel	185	185
+186	north  plot	250	gravel	186	186
+187	east plot	200	sandy	187	187
+188	south plot	250	gravel	188	188
+189	south plot	250	gravel	189	189
+190	south plot	250	gravel	190	190
+191	south plot	250	gravel	191	191
+192	east plot	150	gravel	192	192
+193	south plot	250	sandy	193	193
+194	south plot	100	sandy	194	194
+195	north  plot	250	sandy	195	195
+196	east plot	150	sandy	196	196
+197	north  plot	150	sandy	197	197
+198	north  plot	100	gravel	198	198
+199	north  plot	200	gravel	199	199
+200	north  plot	150	gravel	200	200
+201	east plot	200	sandy	201	201
+202	south plot	100	gravel	202	202
+203	north  plot	100	gravel	203	203
+204	north  plot	200	sandy	204	204
+205	east plot	150	sandy	205	205
+206	south plot	250	sandy	206	206
+207	east plot	150	sandy	207	207
+208	east plot	200	sandy	208	208
+209	south plot	150	sandy	209	209
+210	north  plot	200	sandy	210	210
+211	south plot	250	sandy	211	211
+212	south plot	100	gravel	212	212
+213	south plot	150	sandy	213	213
+214	south plot	100	gravel	214	214
+215	east plot	200	gravel	215	215
+216	east plot	100	sandy	216	216
+217	north  plot	200	gravel	217	217
+218	north  plot	100	gravel	218	218
+219	south plot	150	gravel	219	219
+220	north  plot	200	sandy	220	220
+221	north  plot	150	gravel	221	221
+222	east plot	150	gravel	222	222
+223	south plot	250	sandy	223	223
+224	north  plot	200	gravel	224	224
+225	east plot	150	sandy	225	225
+226	east plot	150	gravel	226	226
+227	east plot	200	gravel	227	227
+228	south plot	250	sandy	228	228
+229	south plot	100	sandy	229	229
+230	north  plot	250	sandy	230	230
+231	south plot	100	gravel	231	231
+232	east plot	150	gravel	232	232
+233	north  plot	200	gravel	233	233
+234	north  plot	200	sandy	234	234
+235	north  plot	250	gravel	235	235
+236	north  plot	150	gravel	236	236
+237	east plot	250	sandy	237	237
+238	east plot	100	gravel	238	238
+239	north  plot	250	sandy	239	239
+240	south plot	150	gravel	240	240
+241	east plot	250	gravel	241	241
+242	south plot	150	gravel	242	242
+243	north  plot	100	gravel	243	243
+244	south plot	250	sandy	244	244
+245	north  plot	100	gravel	245	245
+246	east plot	100	sandy	246	246
+247	east plot	250	gravel	247	247
+248	north  plot	150	gravel	248	248
+249	east plot	150	sandy	249	249
+250	east plot	250	sandy	250	250
+251	east plot	200	sandy	251	251
+252	east plot	150	sandy	252	252
+253	south plot	150	sandy	253	253
+254	east plot	200	sandy	254	254
+255	east plot	150	gravel	255	255
+256	east plot	150	sandy	256	256
+257	north  plot	150	sandy	257	257
+258	east plot	100	sandy	258	258
+259	south plot	250	sandy	259	259
+260	east plot	100	sandy	260	260
+261	south plot	100	gravel	261	261
+262	south plot	250	sandy	262	262
+263	south plot	150	sandy	263	263
+264	north  plot	100	sandy	264	264
+265	east plot	200	gravel	265	265
+266	south plot	100	gravel	266	266
+267	north  plot	250	gravel	267	267
+268	south plot	200	sandy	268	268
+269	north  plot	200	sandy	269	269
+270	south plot	100	sandy	270	270
+271	north  plot	100	sandy	271	271
+272	north  plot	100	sandy	272	272
+273	east plot	250	gravel	273	273
+274	south plot	150	sandy	274	274
+275	south plot	100	sandy	275	275
+276	east plot	200	sandy	276	276
+277	north  plot	250	sandy	277	277
+278	north  plot	150	gravel	278	278
+279	east plot	200	sandy	279	279
+280	south plot	100	sandy	280	280
+281	east plot	200	gravel	281	281
+282	south plot	250	sandy	282	282
+283	east plot	200	sandy	283	283
+284	south plot	100	sandy	284	284
+285	north  plot	200	gravel	285	285
+286	north  plot	100	gravel	286	286
+287	east plot	250	gravel	287	287
+288	south plot	100	gravel	288	288
+289	east plot	250	sandy	289	289
+290	south plot	200	sandy	290	290
+291	south plot	150	sandy	291	291
+292	south plot	100	gravel	292	292
+293	east plot	150	sandy	293	293
+294	south plot	150	gravel	294	294
+295	south plot	250	sandy	295	295
+296	south plot	100	gravel	296	296
+297	east plot	100	sandy	297	297
+298	east plot	100	gravel	298	298
+299	north  plot	100	sandy	299	299
+300	east plot	250	gravel	300	300
+301	east plot	200	gravel	301	301
+302	south plot	200	gravel	302	302
+303	north  plot	250	sandy	303	303
+304	east plot	100	sandy	304	304
+305	south plot	200	sandy	305	305
+306	south plot	250	gravel	306	306
+307	east plot	250	gravel	307	307
+308	south plot	100	sandy	308	308
+309	north  plot	100	gravel	309	309
+310	east plot	150	sandy	310	310
+311	north  plot	100	sandy	311	311
+312	south plot	150	sandy	312	312
+313	east plot	100	sandy	313	313
+314	north  plot	150	sandy	314	314
+315	south plot	200	sandy	315	315
+316	north  plot	200	sandy	316	316
+317	south plot	150	sandy	317	317
+318	north  plot	150	sandy	318	318
+319	east plot	200	sandy	319	319
+320	south plot	100	gravel	320	320
+321	south plot	250	sandy	321	321
+322	north  plot	150	sandy	322	322
+323	east plot	100	gravel	323	323
+324	south plot	200	gravel	324	324
+325	north  plot	150	gravel	325	325
+326	north  plot	100	gravel	326	326
+327	south plot	100	gravel	327	327
+328	east plot	200	sandy	328	328
+329	south plot	250	gravel	329	329
+330	north  plot	200	sandy	330	330
+331	east plot	200	gravel	331	331
+332	north  plot	200	sandy	332	332
+333	south plot	200	gravel	333	333
+334	east plot	100	gravel	334	334
+335	south plot	250	gravel	335	335
+336	south plot	250	gravel	336	336
+337	south plot	250	gravel	337	337
+338	north  plot	200	sandy	338	338
+339	north  plot	250	gravel	339	339
+340	north  plot	150	sandy	340	340
+341	south plot	200	sandy	341	341
+342	east plot	200	gravel	342	342
+343	south plot	100	sandy	343	343
+344	east plot	100	gravel	344	344
+345	north  plot	100	gravel	345	345
+346	east plot	200	gravel	346	346
+347	north  plot	250	sandy	347	347
+348	south plot	250	gravel	348	348
+349	east plot	150	gravel	349	349
+350	east plot	200	sandy	350	350
+351	east plot	100	gravel	351	351
+352	north  plot	150	sandy	352	352
+353	north  plot	100	gravel	353	353
+354	north  plot	250	gravel	354	354
+355	east plot	200	sandy	355	355
+356	north  plot	150	gravel	356	356
+357	east plot	150	sandy	357	357
+358	north  plot	200	gravel	358	358
+359	south plot	150	gravel	359	359
+360	north  plot	200	gravel	360	360
+361	east plot	100	sandy	361	361
+362	south plot	150	gravel	362	362
+363	south plot	150	sandy	363	363
+364	south plot	200	sandy	364	364
+365	east plot	100	sandy	365	365
+366	north  plot	200	sandy	366	366
+367	north  plot	150	sandy	367	367
+368	south plot	100	gravel	368	368
+369	north  plot	250	sandy	369	369
+370	south plot	200	gravel	370	370
+371	north  plot	150	gravel	371	371
+372	east plot	100	gravel	372	372
+373	south plot	150	gravel	373	373
+374	east plot	200	gravel	374	374
+375	north  plot	100	gravel	375	375
+376	east plot	200	gravel	376	376
+377	north  plot	200	gravel	377	377
+378	east plot	250	sandy	378	378
+379	north  plot	200	gravel	379	379
+380	north  plot	250	sandy	380	380
+381	south plot	200	sandy	381	381
+382	east plot	200	sandy	382	382
+383	east plot	100	gravel	383	383
+384	north  plot	250	sandy	384	384
+385	east plot	150	sandy	385	385
+386	north  plot	150	gravel	386	386
+387	south plot	250	gravel	387	387
+388	north  plot	150	sandy	388	388
+389	east plot	200	gravel	389	389
+390	south plot	200	sandy	390	390
+391	east plot	200	sandy	391	391
+392	east plot	200	gravel	392	392
+393	south plot	250	sandy	393	393
+394	north  plot	250	sandy	394	394
+395	north  plot	250	sandy	395	395
+396	south plot	200	gravel	396	396
+397	east plot	100	sandy	397	397
+398	north  plot	100	gravel	398	398
+399	south plot	250	gravel	399	399
+400	north  plot	100	gravel	400	400
+401	north  plot	200	sandy	401	401
+402	south plot	250	gravel	402	402
+403	east plot	200	gravel	403	403
+404	east plot	100	gravel	404	404
+405	south plot	200	gravel	405	405
+406	east plot	150	sandy	406	406
+407	south plot	200	gravel	407	407
+408	east plot	150	sandy	408	408
+409	north  plot	200	gravel	409	409
+410	east plot	250	gravel	410	410
+411	north  plot	250	gravel	411	411
+412	north  plot	100	gravel	412	412
+413	south plot	100	gravel	413	413
+414	north  plot	150	gravel	414	414
+415	north  plot	200	sandy	415	415
+416	north  plot	150	sandy	416	416
+417	east plot	100	sandy	417	417
+418	north  plot	150	sandy	418	418
+419	north  plot	250	gravel	419	419
+420	south plot	250	sandy	420	420
+421	south plot	250	gravel	421	421
+422	north  plot	250	gravel	422	422
+423	south plot	200	sandy	423	423
+424	north  plot	200	sandy	424	424
+425	east plot	150	sandy	425	425
+426	east plot	100	sandy	426	426
+427	north  plot	250	gravel	427	427
+428	north  plot	100	gravel	428	428
+429	north  plot	250	gravel	429	429
+430	north  plot	100	gravel	430	430
+431	east plot	200	sandy	431	431
+432	east plot	150	sandy	432	432
+433	north  plot	100	gravel	433	433
+434	east plot	100	sandy	434	434
+435	south plot	250	gravel	435	435
+436	north  plot	150	sandy	436	436
+437	north  plot	250	gravel	437	437
+438	north  plot	250	gravel	438	438
+439	north  plot	250	sandy	439	439
+440	south plot	200	gravel	440	440
+441	east plot	250	gravel	441	441
+442	east plot	200	sandy	442	442
+443	north  plot	250	gravel	443	443
+444	east plot	200	gravel	444	444
+445	east plot	150	gravel	445	445
+446	north  plot	250	sandy	446	446
+447	north  plot	200	gravel	447	447
+448	east plot	250	gravel	448	448
+449	east plot	250	sandy	449	449
+450	south plot	150	sandy	450	450
+451	east plot	100	sandy	451	451
+452	east plot	100	gravel	452	452
+453	east plot	150	sandy	453	453
+454	east plot	200	sandy	454	454
+455	north  plot	250	sandy	455	455
+456	east plot	250	gravel	456	456
+457	east plot	250	sandy	457	457
+458	east plot	200	gravel	458	458
+459	south plot	250	sandy	459	459
+460	east plot	200	gravel	460	460
+461	north  plot	150	gravel	461	461
+462	east plot	150	gravel	462	462
+463	south plot	100	gravel	463	463
+464	north  plot	150	sandy	464	464
+465	east plot	250	sandy	465	465
+466	north  plot	150	sandy	466	466
+467	south plot	150	gravel	467	467
+468	east plot	100	sandy	468	468
+469	south plot	200	sandy	469	469
+470	south plot	200	sandy	470	470
+471	north  plot	150	gravel	471	471
+472	south plot	100	sandy	472	472
+473	south plot	200	sandy	473	473
+474	south plot	250	sandy	474	474
+475	north  plot	250	gravel	475	475
+476	east plot	100	sandy	476	476
+477	south plot	100	sandy	477	477
+478	east plot	200	gravel	478	478
+479	north  plot	150	sandy	479	479
+480	south plot	200	sandy	480	480
+481	south plot	250	gravel	481	481
+482	north  plot	150	gravel	482	482
+483	north  plot	250	gravel	483	483
+484	south plot	250	gravel	484	484
+485	south plot	200	gravel	485	485
+486	east plot	250	gravel	486	486
+487	east plot	200	gravel	487	487
+488	east plot	200	gravel	488	488
+489	north  plot	250	sandy	489	489
+490	east plot	150	gravel	490	490
+491	north  plot	150	gravel	491	491
+492	south plot	200	sandy	492	492
+493	south plot	250	gravel	493	493
+494	south plot	150	gravel	494	494
+495	east plot	150	sandy	495	495
+496	south plot	250	sandy	496	496
+497	south plot	200	gravel	497	497
+498	south plot	200	sandy	498	498
+499	south plot	100	gravel	499	499
+999	NULL	100	sandy	999	\N
+1000	\N	\N	\N	1	1004
+1001	\N	\N	\N	10	1006
+1002	\N	\N	\N	2	1000
+1003	\N	\N	\N	7	1008
+1004	\N	\N	\N	9	1002
+1005	\N	\N	\N	8	464
+1006	\N	\N	\N	3	1007
+1007	\N	\N	\N	4	1003
+1008	\N	\N	\N	5	1001
+1009	\N	\N	\N	6	1005
+\.
+
+
+--
+-- TOC entry 3512 (class 0 OID 16421)
+-- Dependencies: 225
+-- Data for Name: worker; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.worker (worker_id, w_name, year_of_starting_work, role) FROM stdin;
+4	Tamar	\N	lead
+5	Neta	\N	clean
+6	Yoni	\N	clean
+7	Gal	\N	op
+8	Tal	\N	lead
+9	Eden	\N	op
+10	Itay	\N	op
+11	Eden	\N	op
+12	Maya	\N	wrk
+13	Sarit	\N	tech
+14	Amit	\N	wrk
+15	Avi	\N	wrk
+16	Eli	\N	op
+17	Neta	\N	op
+18	Gal	\N	op
+19	Itay	\N	clean
+20	Omer	\N	mnt
+21	Eli	\N	qa
+22	Shai	\N	wrk
+23	Maya	\N	op
+24	Omer	\N	op
+25	Sarit	\N	clean
+26	Avi	\N	mnt
+27	Yoni	\N	wrk
+28	Gal	\N	qa
+29	Shai	\N	clean
+30	Maya	\N	tech
+31	Sarit	\N	op
+32	Avi	\N	lab
+33	Noam	\N	tech
+34	Itay	\N	qa
+907	Oscar	2015	Harvester
+35	Yael	\N	wrk
+36	Maya	\N	op
+37	Itay	\N	lab
+38	Amit	\N	op
+39	Yael	\N	lead
+40	Shai	\N	op
+41	Omer	\N	op
+42	Avi	\N	mnt
+939	Tina	2011	Harvester
+43	Amit	\N	wrk
+44	Yoni	\N	lab
+45	Shai	\N	op
+46	Lior	\N	clean
+47	Shai	\N	op
+48	Yael	\N	lab
+49	Lena	\N	op
+50	Maya	\N	mnt
+886	Eve	2016	Harvester
+1	John Doe	2015	General Worker
+932	Alice	2015	Harvester
+783	Frank	2004	Senior
+921	Bob	2013	General Worker
+728	Julia	1998	Harvester
+136	Mona	1995	Harvester
+349	Isaac	2000	Harvester
+782	Eve	1993	Harvester
+519	Frank	1996	Harvester
+936	Frank	2023	Harvester
+226	Peter	2004	Harvester
+324	Alice	2021	Harvester
+581	Eve	1999	Harvester
+813	Oscar	1991	Harvester
+527	David	1992	Harvester
+319	Rachel	2012	Harvester
+520	Liam	2019	Harvester
+395	Grace	1991	Harvester
+967	Oscar	2002	Harvester
+482	Charlie	2014	Harvester
+511	Eve	2009	Harvester
+607	Julia	2001	Harvester
+405	Kevin	2023	Harvester
+198	Alice	2005	Harvester
+130	Frank	2021	Harvester
+337	Grace	2007	Harvester
+363	Oscar	2002	Harvester
+190	Tina	2021	Harvester
+717	Julia	1995	Harvester
+294	Liam	2021	Harvester
+492	Rachel	2005	Harvester
+547	Liam	2006	Harvester
+499	Nancy	2013	Harvester
+122	Mona	2004	Harvester
+915	David	2018	Harvester
+401	Kevin	2021	Harvester
+700	Eve	2021	Harvester
+388	Charlie	2020	Harvester
+358	Quinn	2024	Harvester
+491	Isaac	1993	General Worker
+463	Mona	2007	General Worker
+391	Oscar	1992	General Worker
+444	Tina	2013	Harvester
+367	Quinn	2021	Harvester
+220	Nancy	2019	Harvester
+383	David	2001	Harvester
+224	Bob	2022	Harvester
+998	Eve	1993	Harvester
+593	Liam	1998	Harvester
+948	Peter	2009	Harvester
+656	Oscar	2017	Harvester
+501	Mona	2014	Harvester
+430	Mona	2012	Harvester
+667	Eve	2012	Harvester
+771	Nancy	2022	Harvester
+786	Liam	2014	Harvester
+268	Quinn	2024	Harvester
+746	Quinn	2019	Harvester
+908	Liam	2018	Harvester
+780	Kevin	2023	Harvester
+305	Liam	1999	Harvester
+950	Quinn	2004	Harvester
+2	Jane Smith	2018	General Worker
+3	Michael Johnson	2020	General Worker
+433	Liam	2017	Harvester
+447	Steve	2020	Harvester
+659	Hannah	2018	Harvester
+152	Grace	2018	Harvester
+791	Peter	1997	Senior
+379	Nancy	2005	Senior
+551	Isaac	1996	Senior
+613	Steve	1991	Senior
+695	Liam	1995	Senior
+183	Rachel	2024	Harvester
+199	Mona	1998	Harvester
+209	Mona	2020	Harvester
+513	Rachel	2015	Harvester
+955	Nancy	2006	Harvester
+453	Julia	1992	Harvester
+966	Nancy	2011	Harvester
+489	Alice	2017	Harvester
+253	Peter	2000	Harvester
+148	Eve	2005	Harvester
+724	Quinn	1992	Harvester
+432	David	1992	Harvester
+817	Rachel	1994	Harvester
+605	Hannah	2018	Harvester
+291	Rachel	1993	Harvester
+903	Nancy	2021	Harvester
+887	Oscar	2023	Harvester
+149	Liam	1999	Harvester
+400	Bob	2023	Harvester
+630	David	2009	Harvester
+655	Rachel	2017	Harvester
+690	Tina	1999	Harvester
+137	Liam	2006	Harvester
+261	Nancy	2016	Harvester
+900	Oscar	2020	Harvester
+549	Kevin	2014	Harvester
+355	Peter	2024	Harvester
+806	Oscar	2013	Harvester
+317	Julia	2003	Harvester
+326	Kevin	1994	Harvester
+575	Steve	2020	Harvester
+616	Bob	1994	Harvester
+167	Isaac	1995	Harvester
+171	Isaac	1992	Harvester
+784	Eve	2002	Harvester
+815	Eve	1990	Harvester
+308	Isaac	2020	Harvester
+196	Hannah	2013	Harvester
+893	Julia	2013	Harvester
+882	David	2024	Harvester
+156	Eve	2010	Harvester
+910	Rachel	1999	Harvester
+333	Julia	1990	Harvester
+132	Rachel	2016	Harvester
+839	Liam	1998	Harvester
+470	David	2022	Harvester
+854	David	1992	Harvester
+641	Quinn	1994	Harvester
+862	Quinn	2018	Harvester
+555	Eve	2004	Harvester
+307	Rachel	1994	Harvester
+332	David	1993	Harvester
+587	Bob	1991	Harvester
+483	Mona	2022	Harvester
+325	Eve	2018	Harvester
+536	Grace	1990	Harvester
+686	David	2007	Harvester
+935	Bob	2022	Harvester
+763	Hannah	2010	Harvester
+352	Tina	1994	Harvester
+747	Bob	2019	Harvester
+386	Isaac	2009	Harvester
+930	Oscar	2003	Harvester
+238	Grace	2015	Harvester
+615	Hannah	2024	Harvester
+571	Bob	2011	Harvester
+654	Steve	2015	Harvester
+889	Mona	2008	Harvester
+124	Frank	1993	Harvester
+387	Hannah	1991	Harvester
+154	Kevin	2009	Harvester
+161	Charlie	2020	Harvester
+675	Steve	1997	Harvester
+242	Steve	2021	Harvester
+681	David	1993	Harvester
+965	Bob	2010	Harvester
+207	Grace	2020	Harvester
+369	Frank	2008	Harvester
+642	Eve	2016	Harvester
+251	Julia	1999	Harvester
+991	Julia	1999	Harvester
+151	Bob	1993	Harvester
+633	Grace	2015	Harvester
+311	Eve	2020	Harvester
+721	Kevin	2017	Harvester
+256	Peter	2018	Harvester
+222	Julia	1992	Harvester
+484	Mona	2022	Harvester
+926	Rachel	1995	Harvester
+857	Alice	2007	Harvester
+624	Eve	2005	Harvester
+135	Mona	1998	Harvester
+816	Alice	2004	Harvester
+714	Liam	2004	Harvester
+385	Eve	2012	Harvester
+272	Rachel	2012	Harvester
+958	Isaac	1995	Harvester
+354	Hannah	1994	Harvester
+860	Oscar	1993	Harvester
+523	Peter	2009	Harvester
+996	Alice	2018	Harvester
+567	Julia	1996	Harvester
+554	Grace	2011	Harvester
+370	Rachel	2019	Harvester
+243	Nancy	1999	Harvester
+600	Grace	2000	Harvester
+396	Bob	2018	Harvester
+115	Frank	2016	Harvester
+293	Charlie	2022	Harvester
+465	Alice	2014	Harvester
+828	Charlie	1999	Harvester
+851	Quinn	2004	Harvester
+989	Grace	2017	Harvester
+570	Nancy	2007	Harvester
+418	David	2003	Harvester
+832	Nancy	1999	Harvester
+528	Liam	1991	Harvester
+598	Isaac	2022	Harvester
+145	Eve	1997	Harvester
+298	Isaac	1999	Harvester
+804	Oscar	2002	Harvester
+594	Bob	1999	Harvester
+408	Oscar	1994	Harvester
+488	Tina	2011	Harvester
+255	Mona	2022	Harvester
+558	Rachel	1991	Harvester
+940	Isaac	1998	Harvester
+295	Charlie	2021	Harvester
+258	Frank	2009	Harvester
+457	Nancy	2024	Harvester
+846	David	2024	Harvester
+203	Mona	2008	Harvester
+872	Grace	1995	Harvester
+787	Oscar	2018	Harvester
+540	Nancy	1998	Harvester
+556	Hannah	2006	Harvester
+951	Peter	1998	Harvester
+534	Rachel	2015	Harvester
+809	Frank	2010	Harvester
+341	Kevin	2014	Harvester
+741	Quinn	2016	Harvester
+835	Quinn	2022	Harvester
+692	Isaac	1991	Harvester
+999	Kevin	2004	Harvester
+761	Kevin	2006	Harvester
+652	Nancy	1998	Harvester
+300	Isaac	2011	Harvester
+779	Hannah	2011	Harvester
+866	Eve	2011	Harvester
+304	Liam	1994	Harvester
+618	Kevin	2014	Harvester
+495	Oscar	2016	Harvester
+822	Eve	1990	Harvester
+963	Isaac	2013	Harvester
+392	Isaac	1990	Harvester
+507	Kevin	2006	Harvester
+163	Isaac	1991	Harvester
+318	Bob	1995	Harvester
+191	Eve	2021	Harvester
+416	Peter	2005	Harvester
+376	Bob	2005	Harvester
+288	Grace	2017	Harvester
+711	Quinn	2020	Harvester
+407	Tina	2008	Harvester
+217	Tina	2000	Harvester
+708	Quinn	1997	Harvester
+979	Steve	2014	Harvester
+343	Nancy	2006	Harvester
+799	Bob	2017	Harvester
+342	Steve	1998	Harvester
+290	Julia	2004	Harvester
+968	Rachel	2024	Harvester
+730	Peter	2014	Harvester
+371	Alice	2018	Harvester
+107	Kevin	2008	Harvester
+505	Steve	2010	Harvester
+218	Tina	2022	Harvester
+673	Liam	1998	Harvester
+384	Kevin	2020	Harvester
+223	Alice	1996	Harvester
+648	Kevin	2021	Harvester
+263	Isaac	1999	Harvester
+216	Liam	2004	Harvester
+647	Kevin	1994	Harvester
+847	Isaac	2004	Harvester
+159	Isaac	2001	Harvester
+604	Frank	2001	Harvester
+904	Alice	2022	Harvester
+663	Peter	2003	Harvester
+684	Tina	1992	Harvester
+649	Julia	1992	Harvester
+423	Charlie	2009	Harvester
+461	Liam	2021	Harvester
+114	Grace	1996	Harvester
+803	Kevin	2006	Harvester
+666	Tina	1999	Harvester
+431	Oscar	2021	Harvester
+742	Bob	2024	Harvester
+588	Isaac	2013	Harvester
+234	Liam	2021	Harvester
+856	Alice	2012	Harvester
+228	Mona	2006	Harvester
+765	David	2001	Harvester
+279	Charlie	2008	Harvester
+412	Alice	2010	Harvester
+884	Kevin	2016	Harvester
+943	Hannah	2009	Harvester
+961	Julia	1990	Harvester
+874	Bob	2011	Harvester
+678	Nancy	2018	Harvester
+933	Mona	2021	Harvester
+532	Julia	2024	Harvester
+768	Hannah	1998	Harvester
+762	Charlie	1994	Harvester
+429	Frank	2002	Harvester
+143	Liam	2005	Harvester
+315	Liam	2014	Harvester
+543	Hannah	2000	Harvester
+335	Isaac	2007	Harvester
+271	Isaac	2007	Harvester
+834	Tina	2010	Harvester
+493	Quinn	1990	Harvester
+292	Nancy	1990	Harvester
+735	Quinn	1994	Harvester
+585	Isaac	2007	Harvester
+657	Kevin	2024	Harvester
+103	Kevin	1999	Harvester
+510	Liam	2007	Harvester
+883	David	1998	Harvester
+346	David	1992	Harvester
+411	Hannah	1990	Harvester
+612	Bob	2012	Harvester
+321	Mona	2020	Harvester
+964	Julia	2020	Harvester
+201	Alice	2012	Harvester
+212	Frank	2009	Harvester
+557	Nancy	2023	Harvester
+356	Kevin	2010	Harvester
+120	Julia	1993	Harvester
+389	Julia	1997	Harvester
+755	Charlie	2021	Harvester
+823	Julia	2005	Harvester
+796	Charlie	1995	Harvester
+778	Julia	2000	Harvester
+785	Tina	2017	Harvester
+175	Nancy	2006	Harvester
+668	Julia	2016	Harvester
+497	Peter	2018	Harvester
+350	Frank	1990	Harvester
+627	Nancy	2021	Harvester
+160	Peter	1994	Harvester
+944	Julia	2014	Harvester
+206	Liam	2015	Harvester
+240	Tina	2015	Harvester
+553	Peter	2021	Harvester
+100	Isaac	1992	Harvester
+486	Julia	1996	Harvester
+225	Grace	2024	Harvester
+670	Steve	1994	Harvester
+118	Frank	1999	Harvester
+481	Eve	2008	Harvester
+971	Charlie	2023	Harvester
+962	Grace	2018	Harvester
+425	Isaac	2022	Harvester
+892	Charlie	2021	Harvester
+858	Alice	2005	Harvester
+734	Steve	1992	Harvester
+494	Tina	2023	Harvester
+592	Oscar	2009	Harvester
+582	Alice	2017	Harvester
+984	Peter	2010	Harvester
+265	Charlie	1996	Harvester
+375	Liam	2016	Harvester
+694	Nancy	2004	Harvester
+722	Eve	2005	Harvester
+865	Mona	2023	Harvester
+838	David	2003	Harvester
+345	Isaac	2011	Harvester
+559	Frank	2005	Harvester
+428	Mona	2004	Harvester
+390	Mona	2004	Harvester
+517	Alice	2013	Harvester
+599	Bob	2021	Harvester
+800	David	1999	Harvester
+736	Hannah	2004	Harvester
+849	Charlie	2014	Harvester
+146	Grace	1991	Harvester
+281	Bob	2006	Harvester
+899	Eve	2019	Harvester
+269	Rachel	1998	Harvester
+602	Julia	2014	Harvester
+102	David	2022	Harvester
+725	Liam	1994	Harvester
+460	Liam	2011	Harvester
+566	Liam	1997	Harvester
+276	Charlie	1992	Harvester
+403	Rachel	2010	Harvester
+577	Peter	2015	Harvester
+235	Alice	1997	Harvester
+798	Mona	1994	Harvester
+603	Julia	1995	Harvester
+691	Alice	1996	Harvester
+941	Mona	1997	Harvester
+539	Charlie	1992	Harvester
+629	Nancy	2002	Harvester
+729	Tina	2017	Harvester
+508	Isaac	2020	Harvester
+738	Hannah	1999	Harvester
+596	Nancy	2010	Harvester
+792	Alice	2017	Harvester
+706	David	1995	Harvester
+737	Rachel	2001	Harvester
+565	Hannah	2014	Harvester
+366	Steve	1991	Harvester
+622	Frank	1993	Harvester
+509	Steve	2022	Harvester
+873	Liam	2021	Harvester
+314	Nancy	2001	Harvester
+680	Peter	2000	Harvester
+280	Charlie	2003	Harvester
+529	Hannah	2009	Harvester
+530	Julia	2000	Harvester
+413	David	2012	Harvester
+323	Eve	2023	Harvester
+127	Peter	2009	Harvester
+538	Quinn	2010	Harvester
+348	Mona	2018	Harvester
+\.
+
+
+--
+-- TOC entry 3522 (class 0 OID 33010)
+-- Dependencies: 236
+-- Data for Name: worker_performs_process; Type: TABLE DATA; Schema: public; Owner: myuser
+--
+
+COPY public.worker_performs_process (worker_id, processid_) FROM stdin;
+1	10
+2	11
+4	12
+5	13
+6	14
+7	15
+8	16
+9	17
+10	18
+11	19
+12	20
+13	21
+14	22
+15	23
+16	24
+17	25
+18	26
+19	27
+20	28
+21	29
+22	30
+23	31
+24	32
+25	33
+26	34
+27	35
+28	36
+29	37
+30	38
+31	39
+32	40
+33	41
+34	42
+35	43
+36	44
+37	45
+38	46
+39	47
+40	48
+41	49
+42	50
+43	51
+44	52
+45	53
+46	54
+47	55
+48	56
+49	57
+50	58
+\.
+
+
+--
+-- TOC entry 3316 (class 2606 OID 32901)
+-- Name: containers_ containers__pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.containers_
+    ADD CONSTRAINT containers__pkey PRIMARY KEY (containerid_);
+
+
+--
+-- TOC entry 3318 (class 2606 OID 32905)
+-- Name: finalproduct_ finalproduct__pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.finalproduct_
+    ADD CONSTRAINT finalproduct__pkey PRIMARY KEY (batchnumber_);
+
+
+--
+-- TOC entry 3298 (class 2606 OID 16427)
+-- Name: grape_variety grape_variety_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.grape_variety
+    ADD CONSTRAINT grape_variety_pkey PRIMARY KEY (grape_variety_id);
+
+
+--
+-- TOC entry 3300 (class 2606 OID 16429)
+-- Name: harvest harvest_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.harvest
+    ADD CONSTRAINT harvest_pkey PRIMARY KEY (harvest_id);
+
+
+--
+-- TOC entry 3302 (class 2606 OID 16431)
+-- Name: inventory inventory_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.inventory
+    ADD CONSTRAINT inventory_pkey PRIMARY KEY (inventory_id);
+
+
+--
+-- TOC entry 3332 (class 2606 OID 32979)
+-- Name: inventory_process inventory_process_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.inventory_process
+    ADD CONSTRAINT inventory_process_pkey PRIMARY KEY (inventory_id, processid);
+
+
+--
+-- TOC entry 3304 (class 2606 OID 16433)
+-- Name: maintenace maintenace_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.maintenace
+    ADD CONSTRAINT maintenace_pkey PRIMARY KEY (task_id);
+
+
+--
+-- TOC entry 3320 (class 2606 OID 32909)
+-- Name: materials_ materials__pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.materials_
+    ADD CONSTRAINT materials__pkey PRIMARY KEY (materialid_);
+
+
+--
+-- TOC entry 3306 (class 2606 OID 16435)
+-- Name: perform perform_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.perform
+    ADD CONSTRAINT perform_pkey PRIMARY KEY (worker_id, harvest_id);
+
+
+--
+-- TOC entry 3322 (class 2606 OID 32911)
+-- Name: process_equipment process_equipment_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.process_equipment
+    ADD CONSTRAINT process_equipment_pkey PRIMARY KEY (equipmentid_, processid_);
+
+
+--
+-- TOC entry 3324 (class 2606 OID 32913)
+-- Name: process_materials process_materials_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.process_materials
+    ADD CONSTRAINT process_materials_pkey PRIMARY KEY (processid_, materialid_);
+
+
+--
+-- TOC entry 3326 (class 2606 OID 32915)
+-- Name: processcontainers processcontainers_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.processcontainers
+    ADD CONSTRAINT processcontainers_pkey PRIMARY KEY (containerid_, processid_);
+
+
+--
+-- TOC entry 3328 (class 2606 OID 32917)
+-- Name: productionequipment_ productionequipment__pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.productionequipment_
+    ADD CONSTRAINT productionequipment__pkey PRIMARY KEY (equipmentid_);
+
+
+--
+-- TOC entry 3330 (class 2606 OID 32919)
+-- Name: productionprocess_ productionprocess__pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.productionprocess_
+    ADD CONSTRAINT productionprocess__pkey PRIMARY KEY (processid_);
+
+
+--
+-- TOC entry 3308 (class 2606 OID 16437)
+-- Name: receive receive_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.receive
+    ADD CONSTRAINT receive_pkey PRIMARY KEY (task_id, vineyard_id);
+
+
+--
+-- TOC entry 3310 (class 2606 OID 16439)
+-- Name: vine vine_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.vine
+    ADD CONSTRAINT vine_pkey PRIMARY KEY (vine_id);
+
+
+--
+-- TOC entry 3312 (class 2606 OID 16441)
+-- Name: vineyard vineyard_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.vineyard
+    ADD CONSTRAINT vineyard_pkey PRIMARY KEY (vineyard_id);
+
+
+--
+-- TOC entry 3334 (class 2606 OID 33014)
+-- Name: worker_performs_process worker_performs_process_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.worker_performs_process
+    ADD CONSTRAINT worker_performs_process_pkey PRIMARY KEY (worker_id, processid_);
+
+
+--
+-- TOC entry 3314 (class 2606 OID 16443)
+-- Name: worker worker_pkey; Type: CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.worker
+    ADD CONSTRAINT worker_pkey PRIMARY KEY (worker_id);
+
+
+--
+-- TOC entry 3356 (class 2620 OID 40975)
+-- Name: process_equipment trg_update_equipment_status; Type: TRIGGER; Schema: public; Owner: myuser
+--
+
+CREATE TRIGGER trg_update_equipment_status AFTER INSERT ON public.process_equipment FOR EACH ROW EXECUTE FUNCTION public.update_equipment_status();
+
+
+--
+-- TOC entry 3355 (class 2620 OID 40977)
+-- Name: harvest trg_update_vine_maturity; Type: TRIGGER; Schema: public; Owner: myuser
+--
+
+CREATE TRIGGER trg_update_vine_maturity AFTER INSERT ON public.harvest FOR EACH ROW EXECUTE FUNCTION public.update_vine_maturity();
+
+
+--
+-- TOC entry 3335 (class 2606 OID 16444)
+-- Name: grape_variety grape_variety_vine_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.grape_variety
+    ADD CONSTRAINT grape_variety_vine_id_fkey FOREIGN KEY (vine_id) REFERENCES public.vine(vine_id);
+
+
+--
+-- TOC entry 3336 (class 2606 OID 16449)
+-- Name: harvest harvest_inventory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.harvest
+    ADD CONSTRAINT harvest_inventory_id_fkey FOREIGN KEY (inventory_id) REFERENCES public.inventory(inventory_id);
+
+
+--
+-- TOC entry 3351 (class 2606 OID 32980)
+-- Name: inventory_process inventory_process_inventory_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.inventory_process
+    ADD CONSTRAINT inventory_process_inventory_id_fkey FOREIGN KEY (inventory_id) REFERENCES public.inventory(inventory_id);
+
+
+--
+-- TOC entry 3352 (class 2606 OID 32985)
+-- Name: inventory_process inventory_process_processid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.inventory_process
+    ADD CONSTRAINT inventory_process_processid_fkey FOREIGN KEY (processid) REFERENCES public.productionprocess_(processid_);
+
+
+--
+-- TOC entry 3337 (class 2606 OID 16454)
+-- Name: maintenace maintenace_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.maintenace
+    ADD CONSTRAINT maintenace_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.worker(worker_id);
+
+
+--
+-- TOC entry 3338 (class 2606 OID 16459)
+-- Name: perform perform_harvest_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.perform
+    ADD CONSTRAINT perform_harvest_id_fkey FOREIGN KEY (harvest_id) REFERENCES public.harvest(harvest_id);
+
+
+--
+-- TOC entry 3339 (class 2606 OID 16464)
+-- Name: perform perform_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.perform
+    ADD CONSTRAINT perform_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.worker(worker_id);
+
+
+--
+-- TOC entry 3344 (class 2606 OID 32920)
+-- Name: process_equipment process_equipment_equipmentid__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.process_equipment
+    ADD CONSTRAINT process_equipment_equipmentid__fkey FOREIGN KEY (equipmentid_) REFERENCES public.productionequipment_(equipmentid_);
+
+
+--
+-- TOC entry 3345 (class 2606 OID 32925)
+-- Name: process_equipment process_equipment_processid__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.process_equipment
+    ADD CONSTRAINT process_equipment_processid__fkey FOREIGN KEY (processid_) REFERENCES public.productionprocess_(processid_);
+
+
+--
+-- TOC entry 3346 (class 2606 OID 32930)
+-- Name: process_materials process_materials_materialid__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.process_materials
+    ADD CONSTRAINT process_materials_materialid__fkey FOREIGN KEY (materialid_) REFERENCES public.materials_(materialid_);
+
+
+--
+-- TOC entry 3347 (class 2606 OID 32935)
+-- Name: process_materials process_materials_processid__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.process_materials
+    ADD CONSTRAINT process_materials_processid__fkey FOREIGN KEY (processid_) REFERENCES public.productionprocess_(processid_);
+
+
+--
+-- TOC entry 3348 (class 2606 OID 32940)
+-- Name: processcontainers processcontainers_containerid__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.processcontainers
+    ADD CONSTRAINT processcontainers_containerid__fkey FOREIGN KEY (containerid_) REFERENCES public.containers_(containerid_);
+
+
+--
+-- TOC entry 3349 (class 2606 OID 32945)
+-- Name: processcontainers processcontainers_processid__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.processcontainers
+    ADD CONSTRAINT processcontainers_processid__fkey FOREIGN KEY (processid_) REFERENCES public.productionprocess_(processid_);
+
+
+--
+-- TOC entry 3350 (class 2606 OID 32950)
+-- Name: productionprocess_ productionprocess__batchnumber__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.productionprocess_
+    ADD CONSTRAINT productionprocess__batchnumber__fkey FOREIGN KEY (batchnumber_) REFERENCES public.finalproduct_(batchnumber_);
+
+
+--
+-- TOC entry 3340 (class 2606 OID 16469)
+-- Name: receive receive_task_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.receive
+    ADD CONSTRAINT receive_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.maintenace(task_id);
+
+
+--
+-- TOC entry 3341 (class 2606 OID 16474)
+-- Name: receive receive_vineyard_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.receive
+    ADD CONSTRAINT receive_vineyard_id_fkey FOREIGN KEY (vineyard_id) REFERENCES public.vineyard(vineyard_id);
+
+
+--
+-- TOC entry 3342 (class 2606 OID 16479)
+-- Name: vineyard vineyard_harvest_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.vineyard
+    ADD CONSTRAINT vineyard_harvest_id_fkey FOREIGN KEY (harvest_id) REFERENCES public.harvest(harvest_id);
+
+
+--
+-- TOC entry 3343 (class 2606 OID 16484)
+-- Name: vineyard vineyard_vine_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.vineyard
+    ADD CONSTRAINT vineyard_vine_id_fkey FOREIGN KEY (vine_id) REFERENCES public.vine(vine_id);
+
+
+--
+-- TOC entry 3353 (class 2606 OID 33020)
+-- Name: worker_performs_process worker_performs_process_processid__fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.worker_performs_process
+    ADD CONSTRAINT worker_performs_process_processid__fkey FOREIGN KEY (processid_) REFERENCES public.productionprocess_(processid_);
+
+
+--
+-- TOC entry 3354 (class 2606 OID 33015)
+-- Name: worker_performs_process worker_performs_process_worker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: myuser
+--
+
+ALTER TABLE ONLY public.worker_performs_process
+    ADD CONSTRAINT worker_performs_process_worker_id_fkey FOREIGN KEY (worker_id) REFERENCES public.worker(worker_id);
+
+
+-- Completed on 2025-05-23 12:47:35 UTC
+
+--
+-- PostgreSQL database dump complete
+--
+
