@@ -511,4 +511,9 @@ $$;
 בנוסף, מעדכנת את תפקיד העובד ל־Harvester.
 
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/main2.png?raw=true)  
+
+**הפלט של הרצת התוכנית הראשית:**
+
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/main2.1.png?raw=true)  
+
 ## **Backup**  
