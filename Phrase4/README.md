@@ -290,9 +290,6 @@ cutoff_date='2025-05-01
 
 •	טיפול בשגיאות (Exception): אם מתרחשת שגיאה כלשהי במהלך ביצוע העדכונים (למשל אם מזהה הציוד לא קיים בטבלה), הפונקציה תדווח על כך באמצעות RAISE NOTICE, ותמשיך לפעול. הדבר מונע קריסת התהליך כולו.
 
-
-
-
  ```sql
 CREATE OR REPLACE FUNCTION update_equipment_status()
 RETURNS TRIGGER AS $$
@@ -335,13 +332,80 @@ EXECUTE FUNCTION update_equipment_status();
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/triger1.jpg?raw=true)  
 
 
-
-
-
-
-• **טריגר מס' 2-**
+• **טריגר מס' 2- update_maturity_after_harvest**
 
 **הסבר על הטריגר:**
+כאשר מתווסף רשומה חדשה בטבלת harvest, הטריגר בודק כמה זמן עבר מאז שהגפן (מהטבלה vine) נשתלה (v_date) ועד תאריך הקטיף החדש (harvest_date). לפי פרק הזמן הזה, הטריגר מעדכן את רמת הבשלות (maturity_level) של הגפן בטבלת vine.
+כך, המשתמש לא צריך לעדכן את רמת הבשלות ידנית. ובנוסף, זה שומר על עקביות הנתונים בין הגידול (vine) לקטיף (harvest).
+
+🔹 איך זה עובד בפועל ?
+הטריגר מופעל אחרי INSERT על הטבלה harvest.
+
+הטריגר: מאתר את מספר ה־vine_id הקשור ל־harvest_id שהוזן (דרך טבלת vineyard).
+
+לוקח את תאריך השתילה של הגפן (v_date מטבלת vine).
+
+מחשב את הפרש השנים בין v_date ל־harvest_date.
+
+לפי תוצאת ההפרש, הוא מעדכן את עמודת maturity_level באחת מהאפשרויות:
+
+• אם עברו פחות מ3 שנים -> unripe
+
+• אם עברו בין 3 ל- 5 שנים -> ripe
+
+• אם עברו יותר מ5 שנים -> rotten
+
+
+
+ ```sql
+-- שלב 1: הפונקציה
+CREATE OR REPLACE FUNCTION update_vine_maturity()
+RETURNS TRIGGER AS
+$$
+DECLARE
+    vine_date DATE;
+    vine_id_val INTEGER;
+    age_in_years INTEGER;
+BEGIN
+    -- נמצא את הגפן שמתאים ל־inventory_id דרך הקשרים בטבלאות
+    SELECT v.vine_id, v.v_date
+    INTO vine_id_val, vine_date
+    FROM vineyard y
+    JOIN vine v ON y.vine_id = v.vine_id
+    JOIN harvest h ON y.harvest_id = h.harvest_id
+    WHERE h.inventory_id = NEW.inventory_id;
+
+    -- נחשב כמה שנים עברו בין תאריך הגפן לתאריך הקטיף החדש
+    age_in_years := DATE_PART('year', NEW.harvest_date) - DATE_PART('year', vine_date);
+
+    -- עדכון רמת הבשלות
+    IF age_in_years < 1 THEN
+        UPDATE vine SET maturity_level = 'unripe' WHERE vine_id = vine_id_val;
+    ELSIF age_in_years BETWEEN 1 AND 3 THEN
+        UPDATE vine SET maturity_level = 'ripe' WHERE vine_id = vine_id_val;
+    ELSE
+        UPDATE vine SET maturity_level = 'rotten' WHERE vine_id = vine_id_val;
+    END IF;
+
+    RETURN NEW;
+END;
+$$
+LANGUAGE plpgsql;
+--שלב 2 תנאי הטרייגר:
+CREATE TRIGGER trg_update_vine_maturity
+AFTER INSERT ON harvest
+FOR EACH ROW
+EXECUTE FUNCTION update_vine_maturity();
+ ```
+דוגמה לבדיקה:
+ ```sql
+INSERT INTO harvest (harvest_id, harvest_date, quantity, inventory_id)
+VALUES (10000, '2027-05-01', 80, 691);
+ ```
+וה־vine_date של vine_id = 106 הוא '2024-04-27' – כלומר עברו שלוש שנים -> יעודכן ל־ripe.
+
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/TRIGER2-EX.png?raw=true)  
+
 
 ## 4. Main Programs:
 
