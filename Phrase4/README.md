@@ -424,7 +424,7 @@ VALUES (10000, '2027-05-01', 80, 691);
 • **תוכנית ראשית מס' 1 -**
 
 
- •[📜main2 ](files.sql/main2.sql)  
+ •[📜main1 ](files.sql/main2.sql)  
 
 מזמנת את הפונקציה update_worker_roles_and_return_refcursor ואת הפרוצדורה update_material_availability
 
