@@ -195,13 +195,6 @@ $$;
 
   ```
 
----
-
-
-
-
-
-
 **תמונה שממחישה את השינוי לפני ואחרי**
 
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc1.jpg?raw=true)  
@@ -261,16 +254,12 @@ $$;
 התאריך שבחרנו בהרצת הפרוצדורה:
  ```
 cutoff_date='2025-05-01
-(CALL update_inventory_from_harvests('2025-05-01');
-)
+(CALL update_inventory_from_harvests('2025-05-01');)
  ```
-
-
 
 **תמונה שממחישה את השינוי לפני**
 
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc2.jpg?raw=true)  
-
 
 ## 3. Triggers:
 
@@ -411,10 +400,108 @@ VALUES (10000, '2027-05-01', 80, 691);
 
 • **תוכנית ראשית מס' 1 -**
 
+מזמנת את הפונקציה update_worker_roles_and_return_refcursor ואת הפרוצדורה update_material_availability
+
+ ```sql
+DO $$
+DECLARE
+    ref refcursor;
+    rec RECORD;
+BEGIN
+    -- קריאה לפונקציה שמעדכנת תפקידי עובדים לפי שנות ותק
+    ref := 'worker_cursor';
+    PERFORM update_worker_roles_and_return_refcursor(10, ref);
+
+    RAISE NOTICE '--- תוצאות עדכון תפקידי עובדים ---';
+    LOOP
+        FETCH ref INTO rec;
+        EXIT WHEN NOT FOUND;
+        RAISE NOTICE 'עובד: %, תחילת עבודה: %, תפקיד: %', rec.w_name, rec.Year_of_starting_work, rec.role;
+    END LOOP;
+    CLOSE ref;
+
+    -- קריאה לפרוצדורה שמעדכנת זמינות חומרים לפי שימוש
+    CALL update_material_availability();
+
+    RAISE NOTICE '*** פרוצדורה לעדכון חומרים הסתיימה בהצלחה ***';
+
+END;
+$$;
+ ```
 **הסבר על התוכנית:**
+
+1. הפונקציה update_worker_roles_and_return_refcursor(10, ref):
+
+• מחפשת עובדים שהחלו לעבוד לפני 10 שנים או יותר (Year_of_starting_work <= 10).
+
+• לפי שנת תחילת העבודה, היא מעדכנת את תפקיד העובד:
+
+<= 5: מקבל תפקיד Junior
+
+6–15: מקבל תפקיד Mid-level
+
+> 15: מקבל תפקיד Senior
+
+• מחזירה רשימה של העובדים שעודכנו, דרך ה־refcursor.
+
+2. הפרוצדורה update_material_availability():
+
+• מחשבת את השימוש המצטבר בכל חומר בתהליך (Process_Materials).
+
+• מעדכנת את זמינות החומר (QuantityAvailable_) בטבלת Materials_ על ידי חיסור סך השימוש.
+
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/main1.png?raw=true)  
 
 • **תוכנית ראשית מס' 2 -**
+מזמנת את הפונקציה maintenance_summary_update ואת הפרוצדורה update_inventory_from_harvests
+
+ ```sql
+DO $$
+DECLARE
+    ref refcursor;
+    rec RECORD;
+BEGIN
+    -- קריאה לפונקציה שמעדכנת תפקידים לפי משימות תחזוקה
+    ref := 'task_cursor';
+    PERFORM maintenance_summary_update(DATE '2024-12-31', ref);
+
+    RAISE NOTICE '--- תוצאות עדכון תפקידי עובדים ממשימות תחזוקה ---';
+    LOOP
+        FETCH ref INTO rec;
+        EXIT WHEN NOT FOUND;
+        RAISE NOTICE 'משימה: %, סוג: %, תאריך: %, עובד: %', rec.task_id, rec.task_type, rec.m_date, rec.worker_id;
+    END LOOP;
+    CLOSE ref;
+    -- קריאה לפרוצדורה שמעדכנת את המלאי לפי הקצירים
+    CALL update_inventory_from_harvests(DATE '2024-12-31');
+
+    RAISE NOTICE '*** פרוצדורה לעדכון מלאי מקציר הסתיימה בהצלחה ***';
+END;
+$$;
+```
 
 **הסבר על התוכנית:**
+הפונקציה maintenance_summary_update(cutoff_date, ref):
 
+מחפשת משימות תחזוקה שבוצעו עד תאריך מסוים.
+
+לפי סוג המשימה (task_type) מעדכנת את תפקיד העובד:
+
+מ- pruning ל- Pruner
+
+מ- harvesting ל- Harvester
+
+אחרת: General Worker
+
+מחזירה את רשימת המשימות שעברו סינון.
+
+הפרוצדורה update_inventory_from_harvests(cutoff_date):
+
+מאתרת קצירים שבוצעו עד לתאריך מסוים.
+
+מעדכנת את הכמות במחסן (inventory) בהתאם לכמות שנקצרה.
+
+בנוסף, מעדכנת את תפקיד העובד ל־Harvester.
+
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/main2.png?raw=true)  
 ## **Backup**  
