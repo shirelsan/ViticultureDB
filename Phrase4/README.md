@@ -4,6 +4,9 @@
 
 ## 1. Functions:
 
+ •[📜update_worker_roles_and_return_refcursor ](files.sql/fun1.sql)  
+
+
 
 ### **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
 
@@ -75,6 +78,9 @@ $$ LANGUAGE plpgsql;
 
 
 ### **פונקציה שנייה-maintenance_summary_update**
+
+ •[📜maintenance_summary_update ](files.sql/fun2.sql)  
+
 
 **הסבר על הפונקציה:**
 
@@ -149,6 +155,8 @@ $$ LANGUAGE plpgsql;
 
 
 ### **פרוצדורה ראשונה- update_material_availability**
+
+
 
 הפרוצדורה update_material_availability מעדכנת את כמויות המלאי של חומרים בטבלת Materials_ לפי השימוש בפועל שנעשה בהם בתהליכי ייצור, בהתאם לנתונים שבטבלת Process_Materials.
 
