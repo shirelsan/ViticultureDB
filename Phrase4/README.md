@@ -413,7 +413,7 @@ DECLARE
 BEGIN
     -- קריאה לפונקציה שמעדכנת תפקידי עובדים לפי שנות ותק
     ref := 'worker_cursor';
-    PERFORM update_worker_roles_and_return_refcursor(10, ref);
+    PERFORM update_worker_roles_and_return_refcursor(2010, ref);
 
     RAISE NOTICE '--- תוצאות עדכון תפקידי עובדים ---';
     LOOP
@@ -453,7 +453,11 @@ $$;
 
 • מעדכנת את זמינות החומר (QuantityAvailable_) בטבלת Materials_ על ידי חיסור סך השימוש.
 
-![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/main1.png?raw=true)  
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/main1.2.jpg?raw=true) 
+
+**הפלט של הרצת התוכנית הראשית:**
+![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/main1.jpg?raw=true)  
+
 
 • **תוכנית ראשית מס' 2 -**
 מזמנת את הפונקציה maintenance_summary_update ואת הפרוצדורה update_inventory_from_harvests
