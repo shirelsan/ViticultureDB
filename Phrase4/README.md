@@ -4,7 +4,7 @@
 
 ## 1. Functions:
 
- •[📜update_worker_roles_and_return_refcursor ](files.sql/fun1.sql)  
+ •[📜update_worker_roles_and_return_refcursor ](files.sql/func1.sql)  
 
 
 
@@ -79,7 +79,7 @@ $$ LANGUAGE plpgsql;
 
 ### **פונקציה שנייה-maintenance_summary_update**
 
- •[📜maintenance_summary_update ](files.sql/fun2.sql)  
+ •[📜maintenance_summary_update ](files.sql/func2.sql)  
 
 
 **הסבר על הפונקציה:**
@@ -156,6 +156,7 @@ $$ LANGUAGE plpgsql;
 
 ### **פרוצדורה ראשונה- update_material_availability**
 
+ •[📜 update_material_availability ](files.sql/proc1.sql)  
 
 
 הפרוצדורה update_material_availability מעדכנת את כמויות המלאי של חומרים בטבלת Materials_ לפי השימוש בפועל שנעשה בהם בתהליכי ייצור, בהתאם לנתונים שבטבלת Process_Materials.
@@ -208,6 +209,9 @@ $$;
 ![func2](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase4/proc1.jpg?raw=true)  
 
 ### **פרוצדורה שנייה-update_inventory_from_harvests**
+
+ •[📜 update_inventory_from_harvests ](files.sql/proc2.sql)  
+
 
 **הסבר על הפרוצדורה:**
 
@@ -273,6 +277,9 @@ cutoff_date='2025-05-01
 
 ### **טריגר מס' 1- update_equipment_status**
 
+ •[📜 update_equipment_status](files.sql/triger1.sql)  
+
+
 **הסבר על הטריגר:**
 
 הטריגר update_equipment_status אחראי לעדכן את מצב הציוד (status_) בהתאם למידת השימוש בו בתהליכי ייצור.
@@ -330,6 +337,9 @@ EXECUTE FUNCTION update_equipment_status();
 
 
 • **טריגר מס' 2- update_maturity_after_harvest**
+
+ •[📜 update_maturity_after_harvest](files.sql/trigger2.sql)  
+
 
 **הסבר על הטריגר:**
 כאשר מתווסף רשומה חדשה בטבלת harvest, הטריגר בודק כמה זמן עבר מאז שהגפן (מהטבלה vine) נשתלה (v_date) ועד תאריך הקטיף החדש (harvest_date). לפי פרק הזמן הזה, הטריגר מעדכן את רמת הבשלות (maturity_level) של הגפן בטבלת vine.
@@ -410,6 +420,8 @@ VALUES (10000, '2027-05-01', 80, 691);
 ## 4. Main Programs:
 
 • **תוכנית ראשית מס' 1 -**
+
+
 
 מזמנת את הפונקציה update_worker_roles_and_return_refcursor ואת הפרוצדורה update_material_availability
 
