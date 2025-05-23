@@ -4,11 +4,13 @@
 
 ## 1. Functions:
 
- •[📜update_worker_roles_and_return_refcursor ](files.sql/func1.sql)  
 
 
 
 ### **פונקציה ראשונה-update_worker_roles_and_return_refcursor**
+
+ •[📜update_worker_roles_and_return_refcursor ](files.sql/func1.sql)  
+
 
 **הסבר על הפונקציה:**
 
@@ -422,6 +424,7 @@ VALUES (10000, '2027-05-01', 80, 691);
 • **תוכנית ראשית מס' 1 -**
 
 
+ •[📜main2 ](files.sql/main2.sql)  
 
 מזמנת את הפונקציה update_worker_roles_and_return_refcursor ואת הפרוצדורה update_material_availability
 
@@ -480,6 +483,9 @@ $$;
 
 
 • **תוכנית ראשית מס' 2 -**
+
+ •[📜main2 ](files.sql/main2.sql)  
+
 מזמנת את הפונקציה maintenance_summary_update ואת הפרוצדורה update_inventory_from_harvests
 
  ```sql
