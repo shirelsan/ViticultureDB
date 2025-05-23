@@ -470,7 +470,7 @@ DECLARE
 BEGIN
     -- קריאה לפונקציה שמעדכנת תפקידים לפי משימות תחזוקה
     ref := 'task_cursor';
-    PERFORM maintenance_summary_update(DATE '2024-12-31', ref);
+    PERFORM maintenance_summary_update(DATE '2025-4-30', ref);
 
     RAISE NOTICE '--- תוצאות עדכון תפקידי עובדים ממשימות תחזוקה ---';
     LOOP
