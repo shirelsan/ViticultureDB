@@ -253,7 +253,7 @@ $$;
 
 harvest_date קטן או שווה ל־cutoff_date.
 
-קיימת להן התאמה בטבלת perform (המשייכת את הקציר לעובד).
+ובנוסף מזהה הקטיף שווה למזהה ביצוע.
 
 • עדכון טבלת המלאי (inventory) – עבור כל קציר שנמצא, מתווספת כמות הקציר (quantity) לשדה inventory_quantity בטבלת inventory, לפי inventory_id המתאים.
 
