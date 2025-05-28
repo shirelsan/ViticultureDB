@@ -483,9 +483,9 @@ $$;
  ```
 **הסבר על התוכנית:**
 
-1. הפונקציה update_worker_roles_and_return_refcursor(10, ref):
+1. הפונקציה update_worker_roles_and_return_refcursor(2010, ref):
 
-• מחפשת עובדים שהחלו לעבוד לפני 10 שנים או יותר (Year_of_starting_work <= 10).
+• מחפשת עובדים שהחלו לעבוד לפני או ב 2010 ר (Year_of_starting_work <= 2010).
 
 • לפי שנת תחילת העבודה, היא מעדכנת את תפקיד העובד:
 
