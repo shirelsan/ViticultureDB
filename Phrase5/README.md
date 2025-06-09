@@ -1,1 +1,1 @@
-# Developing a Graphical User Interface for Database Interaction
+# Developing a Graphical User Interface for DB Interaction
