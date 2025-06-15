@@ -28,17 +28,22 @@
    ```bash
    docker run --name postgres-db -e POSTGRES_USER=myuser -e POSTGRES_PASSWORD=mypassword -e POSTGRES_DB=mydatabase -p 5432:5432 -d postgres
 
-  2.**התקנת ספריות Python:**
+2.**התקנת ספריות Python:**
 
 
-pip install -r requirements.txt
+
+
 3.**הרצת האפליקציה:**
+pip install -r requirements.txt
 
 
-python app.py
 4.**כניסה למערכת:**
+python app.py
+
 היכנסו דרך הדפדפן לכתובת:
 http://localhost:5000
+
+
 
 
 ## **הסבר על המסכים של האפליקציה:**
@@ -57,9 +62,8 @@ http://localhost:5000
 
 📷 ראו תמונה: screenshots/worker_crud.png
 
-טבלאות רלוונטיות:
+טבלאות רלוונטיות:worker -טבלת עובדים.
 
-worker: מכילה את פרטי העובדים.
 
 פעולות אפשריות במסך:
 
@@ -93,9 +97,8 @@ role
 ### **3. מסך CRUD עבור טבלת harvest**
 📷 ראו תמונה: screenshots/harvest_crud.png
 
-טבלאות רלוונטיות:
+טבלאות רלוונטיות:harvest- נתוני קטיפים בפועל.
 
-harvest: נתוני הקטיפים בפועל
 
 grape_variety: טבלת סוגי ענבים (משמשת כטבלת עזר ליצירת קשר בין קטיף לזן ענבים)
 
