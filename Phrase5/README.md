@@ -75,7 +75,7 @@ http://127.0.0.1:5000/
  
 ## **מבנה המסכים באפליקציה:**
 
-### 1. **מסך כניסה (Home Page)**
+## 1. **מסך כניסה (Home Page)**
 
 **תיאור:**
 זהו המסך הראשי של האפליקציה, אליו מגיע המשתמש מיד לאחר פתיחת המערכת. הוא כולל תפריט ניווט המובילים לשאר המסכים: CRUD לעובדים, לקטיפים, לקישור בין עובדים לקטיפים, ומסך להרצת שאילתות ופרוצדורות.
@@ -86,7 +86,7 @@ http://127.0.0.1:5000/
 **תיאור:**
 זהו המסך הראשי של האפליקציה, אליו מגיע המשתמש מיד לאחר פתיחת המערכת. הוא כולל תפריט ניווט המובילים לשאר המסכים: CRUD לעובדים, לקטיפים, לקישור בין עובדים לקטיפים, ומסך להרצת שאילתות ופרוצדורות.
 
-### 2. **מסך ניהול עובדים**
+## 2. **מסך ניהול עובדים**
 
 **תיאור:**
 במסך זה ניתן לצפות ברשימת העובדים הקיימים, להוסיף עובד חדש, לערוך פרטי עובד, לעדכן תפקידים ושנות ותק, וכן למחוק עובדים ממסד הנתונים.
@@ -94,7 +94,7 @@ http://127.0.0.1:5000/
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_management.jpg?raw=true)  
 
 
-### 3. **מסך ניהול קצירים**
+## 3. **מסך ניהול קצירים**
 
 **תיאור:**
 במסך זה ניתן לצפות בנתוני הקטיפים, להוסיף קטיף חדש, לערוך נתוני קטיף קיים (כמו תאריך וכמות), ולעדכן או למחוק קטיפים על פי הצורך.
@@ -102,7 +102,7 @@ http://127.0.0.1:5000/
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/harvests_list.jpg?raw=true)  
 
 
-### 4. **מסך שיוך עובדים**
+## 4. **מסך שיוך עובדים**
 
 **תיאור:** 
 במסך זה ניתן לשייך עובדים לקטיפים שבוצעו, לצפות בקשרים הקיימים בין עובדים לקטיפים, ולהוסיף או להסיר שיוכים בין עובדים לקטיפים.
@@ -118,32 +118,30 @@ http://127.0.0.1:5000/
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/queries.jpg?raw=true)  
 
 
-🟢 שאילתה לדוגמה 1 – סיכום קטיפים:
+🟢 שאילתה להצגת עובדים עם תפקידים ומשימות:
 
-SELECT harvest_date, SUM(amount_kg) AS total_harvested
-FROM harvest
-GROUP BY harvest_date
-ORDER BY harvest_date;
-**מטרה:** הצגת כמויות ענבים שנקטפו לפי תאריכים – כלי חשוב לתכנון ותיעוד תהליך הייצור.
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/Q1.jpg?raw=true)  
 
-🟢 שאילתה לדוגמה 2 – עובדים פעילים ביותר:
 
-SELECT w.name, COUNT(*) AS num_of_participations
-FROM perform p
-JOIN worker w ON p.worker_id = w.worker_id
-GROUP BY w.name
-ORDER BY num_of_participations DESC;
-**מטרה:** להבין מי מהעובדים לקח חלק בקטיפים הרבים ביותר.
+🟢 שאילתה להצגת מספר משימות לכל עובד:
+ 
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/Q2.jpg?raw=true) 
 
-🔵 פרוצדורה לדוגמה 1 – עדכון מלאי חומרים:
+🟢 שאילתה להצגת עובדים שבצעו גם פעולות תחזוקה וגם קציר:
+ 
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/Q3.jpg?raw=true)
+ 
+🔵 פונקציה עדכון תפקידים לפני שנות עבודה:
 
-CALL update_material_stock(harvest_id := 5, usage_kg := 200);
-תיאור: פרוצדורה שמעדכנת את המלאי בהתאם לקטיף שבוצע וכמות החומר שנצרכה.
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/func1.jpg?raw=true)
 
-🔵 פונקציה לדוגמה 2 – כמות קטיפים לעובד:
+🔵 פונקציה סיכום פעולות תחזוקה בהתאם לתאריך:
 
-SELECT count_harvests_by_worker(3);
-תיאור: מקבלת מזהה של עובד ומחזירה את מספר הקטיפים בהם השתתף.
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/func2.jpg?raw=true)
+ 
+🔵 פרוצדורה עדכון מלאי לפי קציר:
+
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/pro1.jpg?raw=true)
 
 
 ## **קבצים**
@@ -152,6 +150,5 @@ SELECT count_harvests_by_worker(3);
 
 **הוראות הרצה:** בקובץ זה ובקובץ (לשנות ---instructions.txt
 
-**תמונות מסך:** בתיקייה screenshots/
 
 
