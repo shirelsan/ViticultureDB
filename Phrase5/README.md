@@ -190,7 +190,9 @@ INSERT INTO perform (...), UPDATE, DELETE
 טבלה זו מתעדת אילו עובדים לקחו חלק באילו קטיפים. מאפשרת בקרה על חלוקת העבודה, הפקת דו"חות, וניהול שכר או תגמולים על בסיס השתתפות.
 
 ## **5. מסך הפעלת שאילתות ופרוצדורות**
-📷 ראו תמונה: screenshots/queries.png
+
+📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/queries.jpg?raw=true)  
+
 
 **טבלאות רלוונטיות:**
 
