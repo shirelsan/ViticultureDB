@@ -21,7 +21,9 @@
 אפליקציית הניהול שפיתחתי מהווה חלק מפרויקט מסדי נתונים לניהול תהליכי עבודה בכרם ובמפעל ייצור יין. האפליקציה בנויה בטכנולוגיות Flask בצד השרת בשילוב PostgreSQL כבסיס הנתונים, ומאפשרת למשתמשים לנהל בצורה יעילה את הנתונים המרכזיים של הארגון.
 
 ### מטרת הפרויקט
-מטרת הפרויקט היא לספק כלי נוח לניהול פעילות יומיומית של מפעל יין וכרם, תוך שמירה על שלמות הנתונים ואפשרות לבצע בקרה בזמן אמת על העובדים, פעילויות התחזוקה והקטיף.
+מטרת הפרויקט היא לספק כלי נוח לניהול פעילות יומיומית של הכרם, תוך שמירה על שלמות הנתונים ואפשרות לבצע בקרה בזמן אמת על העובדים,פעילויות התחזוקה והקטיף.
+באמצעות הממשק, מנהלי הכרם יכולים לעקוב אחרי פעולות העובדים בזמן אמת, להפיק דוחות על משימות שבוצעו, ולוודא שהמלאי מעודכן בהתאם לקטיפים שנעשו.
+בנוסף, המערכת מקלה על ניהול הנתונים לאורך זמן ומאפשרת תחזוקה פשוטה ונוחה של המידע.
 
 ### מאפיינים עיקריים
 האפליקציה כוללת ממשק משתמש גרפי בדפדפן (מבוסס HTML ו־CSS) ומאפשרת:
@@ -46,11 +48,6 @@
 - **שרת**: SQLAlchemy
 - **הרצה מקומית**: Flask (פועל מקומית או בענן)
 
-באמצעות האפליקציה, מנהלי היקב יכולים לעקוב אחרי פעולות העובדים בזמן אמת, להפיק דוחות על משימות שבוצעו, ולוודא שהמלאי מעודכן בהתאם לקטיפים שנעשו.
-
-בנוסף, המערכת מקלה על ניהול הנתונים לאורך זמן ומאפשרת תחזוקה פשוטה ונוחה של המידע העסקי.
-
-
 ## הוראות הפעלה וכניסה לממשק:
 
 1. **לוודא שה-PostgreSQL (או Docker אם הבסיס רץ דרכו) פעיל**
@@ -72,7 +69,7 @@ http://127.0.0.1:5000/
 ## **הסבר על המסכים של האפליקציה:**
 ### מבנה המסכים באפליקציה
 ### 1. **מסך כניסה (Home Page)**
-📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/home_page.jpg?raw=true)  
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/home_page.jpg?raw=true)  
 
 
 **תיאור:**
