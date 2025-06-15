@@ -14,7 +14,7 @@
 
    •[tools and technologies](#מבנה-הקבצים-בפרויקט)
     
-  •[code_files](#קוד-מצורף:)
+  •[Code_Files](#Code_Files:)
   
 ### introduction:
 ## אודות האפליקציה
@@ -117,11 +117,11 @@ http://127.0.0.1:5000/
  
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/Q2.jpg?raw=true) 
 
-🟢 שאילתה להצגת עובדים שבצעו גם פעולות תחזוקה וגם קציר:
+• שאילתה להצגת עובדים שבצעו גם פעולות תחזוקה וגם קציר:
  
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/Q3.jpg?raw=true)
  
-🔵 פונקציה עדכון תפקידים לפני שנות עבודה:
+• פונקציה עדכון תפקידים לפני שנות עבודה:
 
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/func1.jpg?raw=true)
 
@@ -169,6 +169,6 @@ http://127.0.0.1:5000/
 
 ## **Code Files:**
 
- •[📜code_files ](Phrase5/phrase5_code)
+ • [📂 code_files](phrase5_code)
  
 **קובץ הוראות הרצה:** instructions.txt
