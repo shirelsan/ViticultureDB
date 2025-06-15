@@ -83,9 +83,6 @@ http://127.0.0.1:5000/
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/home_page.jpg?raw=true)  
 
 
-**תיאור:**
-זהו המסך הראשי של האפליקציה, אליו מגיע המשתמש מיד לאחר פתיחת המערכת. הוא כולל תפריט ניווט המובילים לשאר המסכים: CRUD לעובדים, לקטיפים, לקישור בין עובדים לקטיפים, ומסך להרצת שאילתות ופרוצדורות.
-
 ## 2. **מסך ניהול עובדים**
 
 **תיאור:**
@@ -144,11 +141,26 @@ http://127.0.0.1:5000/
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/pro1.jpg?raw=true)
 
 
-## **קבצים**
+### **מבנה הקבצים בפרויקט**
+מבנה הפרויקט כולל את הקבצים והתיקיות הבאים:
+```cpp
+/project_root
+│
+├── app.py                
+│
+├── /templates             
+│   ├── index.html
+│   ├── worker.html
+│   ├── edit_worker.html
+│   ├── harvest.html
+│   ├── edit_harvest.html
+│   ├── perform.html
+│   ├── queries.html
+│
+└── /static                
+    └── style.css, תמונת רקע
+```
 
-**קוד מקור:**  בתיקייה app/
+**קוד מקור:**  בתיקייה בשם phrase5_code 
 
-**הוראות הרצה:** בקובץ זה ובקובץ (לשנות ---instructions.txt
-
-
-
+**קובץ הוראות הרצה:** instructions.txt
