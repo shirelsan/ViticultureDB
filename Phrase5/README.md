@@ -138,7 +138,7 @@ http://127.0.0.1:5000/
 
 הממשק כולל מנגנוני בקרה על הזנת הנתונים, כך שבמקרים בהם שדות חיוניים (כגון מזהה עובד או שם) אינם מוזנים, המשתמש מקבל הודעת מתאימה המדריכה אותו להשלים את השדות החסרים בטרם המשך הפעולה.
 
-לדוגמה:  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/add1.jpg?raw=true)
+דוגמה:  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/add1.jpg?raw=true)
 
 
 ### **מבנה הקבצים בפרויקט**
