@@ -63,7 +63,8 @@ http://localhost:5000
 ## **הסבר על המסכים של האפליקציה:**
 ### מבנה המסכים באפליקציה
 ### 1. **מסך כניסה (Home Page)**
-📷 ראו תמונה: screenshots/home.png
+📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/home_page.jpg?raw=true)  
+
 
 **תיאור:**
 
