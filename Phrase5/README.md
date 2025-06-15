@@ -12,9 +12,9 @@
   
   •[Explanation of the app screens](#מבנה-המסכים-באפליקציה)
 
-   •[tools and technologies](#מבנה-הקבצים-ושימוש-טכנולוגי)
+   •[tools and technologies](#מבנה-הקבצים-בפרויקט)
     
-  •[code_files](#קוד-מצורך)
+  •[code_files](#קוד-מצורף:)
   
 ### introduction:
 ## אודות האפליקציה
@@ -108,12 +108,12 @@ http://127.0.0.1:5000/
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/queries.jpg?raw=true)  
 
 
-🟢 שאילתה להצגת עובדים עם תפקידים ומשימות:
+• שאילתה להצגת עובדים עם תפקידים ומשימות:
 
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/Q1.jpg?raw=true)  
 
 
-🟢 שאילתה להצגת מספר משימות לכל עובד:
+• שאילתה להצגת מספר משימות לכל עובד:
  
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/Q2.jpg?raw=true) 
 
@@ -125,11 +125,11 @@ http://127.0.0.1:5000/
 
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/func1.jpg?raw=true)
 
-🔵 פונקציה סיכום פעולות תחזוקה בהתאם לתאריך:
+• פונקציה סיכום פעולות תחזוקה בהתאם לתאריך:
 
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/func2.jpg?raw=true)
  
-🔵 פרוצדורה עדכון מלאי לפי קציר:
+• פרוצדורה עדכון מלאי לפי קציר:
 
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/pro1.jpg?raw=true)
 
@@ -169,4 +169,5 @@ http://127.0.0.1:5000/
 
 ## **קוד מצורף:**
  •[📜code_files ](Phrase5/phrase5_code)
+ 
 **קובץ הוראות הרצה:** instructions.txt
