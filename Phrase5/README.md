@@ -94,102 +94,29 @@ http://127.0.0.1:5000/
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_management.jpg?raw=true)  
 
 
-### **3. מסך ניהול קצירים:**
+### **3. מסך ניהול קצירים**
 
 **תיאור:**
 במסך זה ניתן לצפות בנתוני הקטיפים, להוסיף קטיף חדש, לערוך נתוני קטיף קיים (כמו תאריך וכמות), ולעדכן או למחוק קטיפים על פי הצורך.
 
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/harvests_list.jpg?raw=true)  
 
-**טבלאות רלוונטיות:** harvest- נתוני קטיפים בפועל.
+
+### **4. מסך שיוך עובדים **
+
+**תיאור:** 
+במסך זה ניתן לשייך עובדים לקטיפים שבוצעו, לצפות בקשרים הקיימים בין עובדים לקטיפים, ולהוסיף או להסיר שיוכים בין עובדים לקטיפים.
+
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_to_harvest.jpg?raw=true)  
 
 
-grape_variety: טבלת סוגי ענבים (משמשת כטבלת עזר ליצירת קשר בין קטיף לזן ענבים)
+## **5. מסך הפעלת שאילתות, פונקציות ופרוצדורות**
 
-**פעולות אפשריות במסך:**
+**תיאור:**
+במסך זה ניתן להריץ שאילתות SQL מתקדמות לקבלת דוחות ומידע מהמערכת, להפעיל פונקציות מובנות לביצוע עדכונים מבוקרים בנתונים, ולהריץ פרוצדורה שמבצעת עדכונים במסד הנתונים, כגון עדכון כמויות מלאי או שינוי תפקידי עובדים בהתאם לנתוני קטיפים ותחזוקה.
 
--צפייה ברשימת קטיפים קיימים
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/queries.jpg?raw=true)  
 
--הוספת קטיף חדש
-
--עדכון קטיף
-
--מחיקת קטיף
-
-**שדות:**
-
-*harvest_id
-
-*harvest_date
-
-*grape_variety_id (מפתח זר ל־grape_variety)
-
-*amount_kg
-
-**הטמעה טכנית:**
-
-הצגת הקטיפים באמצעות SELECT * FROM harvest JOIN grape_variety USING (grape_variety_id)
-
-שאילתות INSERT, UPDATE, DELETE לפי פעולה נבחרת
-
-**התרומה למערכת:**
-
-קטיף הענבים הוא תחילת תהליך הייצור. איסוף נתונים על תאריכים, כמויות וסוגים מאפשר בקרה חקלאית, תכנון מלאי ומעקב אחרי התוצר.
-
-### **4. מסך CRUD עבור טבלת perform**
-
-📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_to_harvest.jpg?raw=true)  
-
-
-
-**טבלאות רלוונטיות:** perform  שמקשרת בין worker ו-harvest.
-
-
-
-**פעולות אפשריות במסך:**
-
--צפייה בהקשרים בין עובדים לקטיפים
-
--הוספת פעולה (כלומר שיבוץ עובד לקטיף)
-
--עדכון נתוני ביצוע
-
--מחיקת שיבוץ
-
-**שדות:**
-
-*worker_id (FK)
-
-*harvest_id (FK)
-
-*date_participated
-
-**הטמעה טכנית:**
-
-SELECT perform.*, worker.name, harvest.harvest_date FROM perform JOIN worker USING (worker_id) JOIN harvest USING (harvest_id)
-
-INSERT INTO perform (...), UPDATE, DELETE
-
-**התרומה למערכת:**
-
-טבלה זו מתעדת אילו עובדים לקחו חלק באילו קטיפים. מאפשרת בקרה על חלוקת העבודה, הפקת דו"חות, וניהול שכר או תגמולים על בסיס השתתפות.
-
-## **5. מסך הפעלת שאילתות ופרוצדורות**
-
-📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/queries.jpg?raw=true)  
-
-
-**טבלאות רלוונטיות:**
-
-כל טבלאות המערכת עשויות להשתתף לפי השאילתות והפרוצדורות שנבחרו.
-
-**רכיבי המסך:**
-
--כפתורים להפעלת שאילתות מתקדמות
-
--כפתורים להפעלת פרוצדורות ופונקציות
-
--תיבת טקסט או טבלה להצגת התוצאות
 
 🟢 שאילתה לדוגמה 1 – סיכום קטיפים:
 
@@ -218,9 +145,6 @@ CALL update_material_stock(harvest_id := 5, usage_kg := 200);
 SELECT count_harvests_by_worker(3);
 תיאור: מקבלת מזהה של עובד ומחזירה את מספר הקטיפים בהם השתתף.
 
-**התרומה למערכת:**
-
-זהו מסך עוצמתי למשתמשים מתקדמים או מנהלים. מאפשר תובנות עסקיות, תכנון, בדיקת ביצועים וסטטיסטיקות תפעוליות, וכן שליטה ישירה בפרוצדורות ניהול כמו עדכון מלאים או הפקת דו"חות משתנים.
 
 ## **קבצים**
 
