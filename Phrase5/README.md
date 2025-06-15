@@ -77,7 +77,8 @@ http://localhost:5000
 
 ### **2. מסך CRUD עבור טבלת worker**
 
-📷 ראו תמונה: screenshots/worker_crud.png
+📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_management.jpg?raw=true)  
+
 
 **טבלאות רלוונטיות:** worker -טבלת עובדים.
 
