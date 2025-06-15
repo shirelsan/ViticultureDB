@@ -1,6 +1,9 @@
 # Developing a Graphical User Interface for DB Interaction
 
 ## ממשק גרפי לניהול מערכת כרם וייצור יין
+## Authors
+Shirel Sananes (ID: 322328824)
+Tal Shazifi (ID: )
 
 ## Table of Contents  
 
