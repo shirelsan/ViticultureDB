@@ -152,7 +152,10 @@ grape_variety: טבלת סוגי ענבים (משמשת כטבלת עזר ליצ
 קטיף הענבים הוא תחילת תהליך הייצור. איסוף נתונים על תאריכים, כמויות וסוגים מאפשר בקרה חקלאית, תכנון מלאי ומעקב אחרי התוצר.
 
 ### **4. מסך CRUD עבור טבלת perform**
-📷 ראו תמונה: screenshots/perform_crud.png
+
+📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_to_harvest.jpg?raw=true)  
+
+
 
 **טבלאות רלוונטיות:** perform  שמקשרת בין worker ו-harvest.
 
