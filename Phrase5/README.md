@@ -1,6 +1,6 @@
 # Developing a Graphical User Interface for DB Interaction
 
-# ממשק גרפי לניהול מערכת ייצור יין
+## ממשק גרפי לניהול מערכת כרם וייצור יין
 
 ## Table of Contents  
 
