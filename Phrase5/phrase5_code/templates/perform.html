@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>שיוך עובדים לקצירים</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>שיוך עובדים לקציר</h1>
+    <a href="/" class="home-btn">🏠 דף הבית</a>
+
+    <!-- טופס שיוך חדש מעל הטבלה -->
+
+    <form action="/add_perform" method="post">
+        <input type="text" name="worker_id" placeholder="מזהה עובד" required>
+        <input type="text" name="harvest_id" placeholder="מזהה קציר" required>
+        <button type="submit">➕ שיוך חדש</button>
+    </form>
+
+    <!-- טבלת השיוכים -->
+    <table>
+        <tr>
+            <th>מזהה עובד</th>
+            <th>מזהה קציר</th>
+        </tr>
+        {% for p in performs %}
+        <tr>
+            <td>{{ p[0] }}</td>
+            <td>{{ p[1] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

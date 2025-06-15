@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>הרצת שאילתות</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* עיצוב מיוחד לתיבת הבחירה */
+        select[name="query_type"] {
+            width: 100%;
+            max-width: 500px;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            color: #333;
+            appearance: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            outline: none;
+            direction: rtl;
+            font-family: inherit;
+        }
+
+        select[name="query_type"]:focus {
+            border-color: #4a90e2;
+            box-shadow: 0 6px 20px rgba(74, 144, 226, 0.3);
+            transform: translateY(-2px);
+        }
+
+        select[name="query_type"]:hover {
+            border-color: #4a90e2;
+            box-shadow: 0 6px 16px rgba(74, 144, 226, 0.2);
+        }
+
+        .select-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #666;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .select-wrapper:hover::after {
+            color: #4a90e2;
+        }
+
+        button[type="submit"] {
+            padding: 12px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+            margin-top: 15px;
+        }
+
+        button[type="submit"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(74, 144, 226, 0.4);
+        }
+
+        button[type="submit"]:active {
+            transform: translateY(0);
+        }
+
+        #year_param_container {
+            margin-top: 10px;
+            max-width: 500px;
+        }
+
+        #year_param {
+            width: 100%;
+            padding: 10px 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        #year_param:focus {
+            border-color: #4a90e2;
+            box-shadow: 0 0 10px rgba(74, 144, 226, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <h1>הרצת שאילתות ופרוצדורות</h1>
+    <a href="/" class="home-btn">🏠 דף הבית</a>
+    <form action="/run_query" method="post">
+        <div class="select-wrapper">
+            <select name="query_type" required>
+                <option value="">בחר שאילתה</option>
+                <option value="query1">עובדים עם תפקידים ומשימות</option>
+                <option value="query3">מספר משימות לכל עובד</option>
+                <option value="query8">עובדים שעשו גם תחזוקה וגם קציר</option>
+                <option value="func1">פונקציה - עדכון תפקידים לפי שנות עבודה</option>
+                <option value="func2">פונקציה - סיכום תחזוקה לפי תאריך</option>
+                <option value="proc1">פרוצדורה - עדכון מלאי לפי קציר</option>
+            </select>
+        </div>
+
+        <div id="year_param_container" style="display: none;">
+            <label for="year_param">שנה לפונקציה עדכון תפקידים:</label>
+            <input type="number" id="year_param" name="year_param" value="2020" min="1900" max="2030">
+            <small>הכניס שנה (למשל: 2020) לעדכון תפקידים לעובדים שהתחילו עד השנה הזאת</small>
+        </div>
+
+        <div id="date_param_container" style="display: none;">
+            <div class="date-instruction">
+                <label for="date_param">תאריך לפונקציה עדכון תחזוקה:</label><br>
+                <small>בחרי תאריך - הפונקציה תעבד על כל משימות התחזוקה עד התאריך הזה ותעדכן תפקידי עובדים בהתאם</small>
+            </div>
+            <input type="date" id="date_param" name="date_param">
+        </div>
+
+        <div id="proc_date_param_container" style="display: none;">
+            <div class="date-instruction">
+                <label for="proc_date_param">תאריך לפרוצדורה עדכון מלאי:</label><br>
+                <small>בחרי תאריך - הפרוצדורה תעבד על כל הקצירים עד התאריך הזה ותעדכן מלאי ותפקידי עובדים</small>
+            </div>
+            <input type="date" id="proc_date_param" name="proc_date_param" value="2025-02-28">
+        </div>
+
+        <button type="submit">▶ הרץ</button>
+    </form>
+
+    {% if results %}
+    <h2>תוצאות</h2>
+    <table border="1">
+        <tr>
+            {% if query_type == 'query1' %}
+                <th>מזהה עובד</th>
+                <th>שם</th>
+                <th>תפקיד</th>
+                <th>סוג משימה</th>
+                <th>תאריך</th>
+                <th>יום</th>
+                <th>חודש</th>
+                <th>שנה</th>
+            {% elif query_type == 'query3' %}
+                <th>מזהה עובד</th>
+                <th>שם</th>
+                <th>תפקיד</th>
+                <th>מספר משימות</th>
+            {% elif query_type == 'query8' %}
+                <th>שם</th>
+                <th>מזהה עובד</th>
+            {% elif query_type == 'func1' %}
+                <th>מזהה עובד</th>
+                <th>שם</th>
+                <th>שנת תחילת עבודה</th>
+                <th>תפקיד</th>
+            {% elif query_type == 'func2' %}
+                <th>מזהה משימה</th>
+                <th>סוג משימה</th>
+                <th>תאריך</th>
+                <th>מזהה עובד</th>
+                <th>שם</th>
+                <th>תפקיד</th>
+            {% elif query_type == 'proc1' %}
+                <th>מזהה קציר</th>
+                <th>תאריך קציר</th>
+                <th>כמות</th>
+                <th>מזהה מלאי</th>
+                <th>מזהה עובד</th>
+                <th>שם</th>
+                <th>תפקיד</th>
+                <th>כמות מלאי נוכחית</th>
+            {% endif %}
+        </tr>
+
+        {% for row in results %}
+        <tr>
+            {% for col in row %}
+            <td>{{ col }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <script>
+        const selectElement = document.querySelector('select[name="query_type"]');
+        const yearParamContainer = document.getElementById('year_param_container');
+        const dateParamContainer = document.getElementById('date_param_container');
+        const procDateParamContainer = document.getElementById('proc_date_param_container');
+
+        selectElement.addEventListener('change', function() {
+            yearParamContainer.style.display = 'none';
+            dateParamContainer.style.display = 'none';
+            procDateParamContainer.style.display = 'none';
+
+            if (this.value === 'func1') {
+                yearParamContainer.style.display = 'block';
+            } else if (this.value === 'func2') {
+                dateParamContainer.style.display = 'block';
+            } else if (this.value === 'proc1') {
+                procDateParamContainer.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

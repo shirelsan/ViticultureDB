@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>עריכת קציר</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>עריכת קציר</h1>
+    <a href="/" class="home-btn">🏠 דף הבית</a>
+
+    <form action="/update_harvest/{{ harvest[0] }}" method="post">
+        <input type="date" name="harvest_date" value="{{ harvest[1] }}" required>
+        <input type="number" name="quantity" value="{{ harvest[2] }}" required>
+        <input type="text" name="inventory_id" value="{{ harvest[3] }}" required>
+        <button type="submit">💾 עדכן</button>
+    </form>
+</body>
+</html>

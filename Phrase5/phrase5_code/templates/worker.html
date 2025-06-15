@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>עובדים</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <a href="/" class="home-btn">🏠 דף הבית</a>
+
+    <div class="container">
+        <h1>רשימת עובדים</h1>
+
+        <h2>  </h2>
+        <form action="/add_worker" method="post">
+            <input type="text" name="worker_id" placeholder="מזהה" required>
+            <input type="text" name="w_name" placeholder="שם" required>
+            <input type="number" name="year" placeholder="שנת התחלה" required>
+            <input type="text" name="role" placeholder="תפקיד" required>
+            <button type="submit">➕ הוסף עובד חדש</button>
+        </form>
+
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>שם</th>
+                <th>שנת התחלה</th>
+                <th>תפקיד</th>
+                <th>פעולות</th>
+            </tr>
+            {% for w in workers %}
+            <tr>
+                <td>{{ w[0] }}</td>
+                <td>{{ w[1] }}</td>
+                <td>{{ w[2] }}</td>
+                <td>{{ w[3] }}</td>
+                <td>
+                    <a href="/edit_worker/{{ w[0] }}">✏ עריכה</a>
+                    <a href="/delete_worker/{{ w[0] }}" onclick="return confirm('האם למחוק את העובד?')">🗑 מחיקה</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>קצירים</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <a href="/" class="home-btn">🏠 דף הבית</a>
+
+    <div class="container">
+        <h1>רשימת קצירים</h1>
+
+        <h2> </h2>
+        <form action="/add_harvest" method="post">
+            <input type="text" name="harvest_id" placeholder="מזהה" required>
+            <input type="date" name="harvest_date" required>
+            <input type="number" name="quantity" placeholder="כמות" required>
+            <input type="text" name="inventory_id" placeholder="מזהה מלאי" required>
+            <button type="submit"> ➕ הוסף קציר חדש</button>
+        </form>
+
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>תאריך</th>
+                <th>כמות</th>
+                <th>מזהה מלאי</th>
+                <th>פעולות</th>
+            </tr>
+            {% for h in harvests %}
+            <tr>
+                <td>{{ h[0] }}</td>
+                <td>{{ h[1] }}</td>
+                <td>{{ h[2] }}</td>
+                <td>{{ h[3] }}</td>
+                <td>
+                    <a href="/edit_harvest/{{ h[0] }}">✏ עריכה</a>
+                    <a href="/delete_harvest/{{ h[0] }}" onclick="return confirm('האם למחוק את הקציר?')">🗑 מחיקה</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</body>
+</html>
