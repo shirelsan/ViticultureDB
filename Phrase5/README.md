@@ -184,4 +184,4 @@ http://127.0.0.1:5000/
  
 **קובץ הוראות הרצה:** instructions.txt
 
- •[📜**קובץ הוראות הרצה:** instructions.txt](instructions.txt.docs)  
+ •[📜**קובץ הוראות הרצה:** instructions.txt](instructions.txt.docx)  
