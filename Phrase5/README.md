@@ -6,15 +6,15 @@
 
  •[Phase 5: Introduction](#introduction)
  
-  •[אודות האפליקציה](#אודות-האפליקציה)
+  •[about the aplication](#אודות-האפליקציה)
    
-  •[Procedures](#procedures)
+  •[tools and technologies](#כלים-וטכנולוגיות)
 
-  •[Triggers](#triggers)
+  •[Installation and commissioning instructions](#הוראות-התקנה-והרצה)
   
-  •[Main Programs](#main-programs)
+  •[Explanation of the app screens](#הסבר-על-המסכים-של-האפליקציה)
     
-  •[Backup](#backup)
+  •[Files](#קבצים)
 ### introduction:
 ## אודות האפליקציה
 
@@ -231,7 +231,7 @@ SELECT count_harvests_by_worker(3);
 
 זהו מסך עוצמתי למשתמשים מתקדמים או מנהלים. מאפשר תובנות עסקיות, תכנון, בדיקת ביצועים וסטטיסטיקות תפעוליות, וכן שליטה ישירה בפרוצדורות ניהול כמו עדכון מלאים או הפקת דו"חות משתנים.
 
-## **קבצים מצורפים**
+## **קבצים**
 
 **קוד מקור:**  בתיקייה app/
 
