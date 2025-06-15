@@ -4,7 +4,7 @@
 
 ## Table of Contents  
 
- •[Phase 5: Introduction](#introduction)
+ •[Introduction](#introduction)
  
   •[about the aplication](#אודות-האפליקציה)
    
