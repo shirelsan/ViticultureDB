@@ -183,3 +183,5 @@ http://127.0.0.1:5000/
  • [📂 Code_Files](phrase5_code)
  
 **קובץ הוראות הרצה:** instructions.txt
+
+ •[📜**קובץ הוראות הרצה:** instructions.txt ](instructions.txt)  
