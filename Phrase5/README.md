@@ -79,7 +79,6 @@ http://localhost:5000
 
 📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_management.jpg?raw=true)  
 
-
 **טבלאות רלוונטיות:** worker -טבלת עובדים.
 
 
@@ -115,7 +114,7 @@ http://localhost:5000
 העובדים הם משאב מרכזי בתהליך ייצור היין. ניהול יעיל של פרטי העובדים מאפשר בקרה על כוח האדם, הקצאת משימות, ושיוך של פעולות כמו קטיפים ועיבודים לעובדים מתאימים.
 
 ### **3. מסך CRUD עבור טבלת harvest**
-📷 ראו תמונה: screenshots/harvest_crud.png
+📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/harvests_list.jpg?raw=true)  
 
 **טבלאות רלוונטיות:** harvest- נתוני קטיפים בפועל.
 
