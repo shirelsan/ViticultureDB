@@ -86,45 +86,20 @@ http://127.0.0.1:5000/
 **תיאור:**
 זהו המסך הראשי של האפליקציה, אליו מגיע המשתמש מיד לאחר פתיחת המערכת. הוא כולל תפריט ניווט המובילים לשאר המסכים: CRUD לעובדים, לקטיפים, לקישור בין עובדים לקטיפים, ומסך להרצת שאילתות ופרוצדורות.
 
-### **2. מסך CRUD עבור טבלת worker**
+### **2. מסך ניהול עובדים **
+
+**תיאור:**
+במסך זה ניתן לצפות ברשימת העובדים הקיימים, להוסיף עובד חדש, לערוך פרטי עובד, לעדכן תפקידים ושנות ותק, וכן למחוק עובדים ממסד הנתונים.
 
  ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/worker_management.jpg?raw=true)  
 
-**טבלאות רלוונטיות:** worker -טבלת עובדים.
 
-**פעולות אפשריות במסך:**
+### **3. מסך ניהול קצירים:**
 
--שליפה של כלל העובדים
+**תיאור:**
+במסך זה ניתן לצפות בנתוני הקטיפים, להוסיף קטיף חדש, לערוך נתוני קטיף קיים (כמו תאריך וכמות), ולעדכן או למחוק קטיפים על פי הצורך.
 
--הוספה של עובד חדש
-
--עדכון של פרטי עובד קיים
-
--מחיקה של עובד
-
-**שדות:**
-
-*worker_id (מפתח ראשי)
-
-*name
-
-*age
-
-*role
-
-**הטמעה טכנית:**
-
-שליפות מתבצעות עם שאילתות SELECT * FROM worker.
-
-פעולות ההוספה/עדכון/מחיקה מתבצעות עם שאילתות INSERT, UPDATE, DELETE בהתאם.
-
-**התרומה למערכת:**
-
-
-העובדים הם משאב מרכזי בתהליך ייצור היין. ניהול יעיל של פרטי העובדים מאפשר בקרה על כוח האדם, הקצאת משימות, ושיוך של פעולות כמו קטיפים ועיבודים לעובדים מתאימים.
-
-### **3. מסך CRUD עבור טבלת harvest**
-📷 ראו תמונה: ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/harvests_list.jpg?raw=true)  
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/harvests_list.jpg?raw=true)  
 
 **טבלאות רלוונטיות:** harvest- נתוני קטיפים בפועל.
 
