@@ -127,7 +127,7 @@ http://127.0.0.1:5000/
  
 • פונקציה עדכון תפקידים לפני שנות עבודה:
 
- ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/func1.jpg?raw=true)
+ ![screen1](https://github.com/shirelsan/ViticultureDB/blob/main/Phrase5/Screenshots/func1_1.jpg?raw=true)
 
 • פונקציה סיכום פעולות תחזוקה בהתאם לתאריך:
 
